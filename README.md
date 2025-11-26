@@ -171,3 +171,7 @@ To use local embeddings instead of OpenAI:
    - `HUGGINGFACEHUB_API_TOKEN=...` only if the model requires auth (most public models don't)
 
 This setup uses local embeddings while still using Groq for fast LLM inference.
+
+
+
+dwqsfgregq
