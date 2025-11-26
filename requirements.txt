@@ -15,3 +15,7 @@ unstructured
 pytesseract
 pillow
 pdf2image
+docx2txt
+openpyxl
+python-pptx
+networkx

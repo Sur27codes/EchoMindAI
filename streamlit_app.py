@@ -103,24 +103,35 @@ def main():
         # Document upload (optional)
         st.subheader("📄 Upload Documents")
         uploaded_files = st.file_uploader(
-            "Upload documents (Text, Markdown, PDF, Image)",
-            type=["md", "txt", "pdf", "png", "jpg", "jpeg"],
+            "Upload documents (All file types)",
             accept_multiple_files=True,
         )
         
         if uploaded_files and st.button("💾 Save Uploaded Files", use_container_width=True):
             saved_count = 0
+            import zipfile
+            
             for uploaded_file in uploaded_files:
-                file_path = settings.data_dir / uploaded_file.name
                 try:
-                    with open(file_path, "wb") as f:
-                        f.write(uploaded_file.getbuffer())
-                    saved_count += 1
+                    # Handle Zip files
+                    if uploaded_file.name.lower().endswith(".zip"):
+                        with zipfile.ZipFile(uploaded_file) as z:
+                            # Extract to a subdirectory named after the zip file
+                            extract_path = settings.data_dir / uploaded_file.name.rsplit('.', 1)[0]
+                            z.extractall(extract_path)
+                            st.info(f"Extracted {uploaded_file.name} to {extract_path}")
+                            saved_count += 1
+                    else:
+                        # Handle regular files
+                        file_path = settings.data_dir / uploaded_file.name
+                        with open(file_path, "wb") as f:
+                            f.write(uploaded_file.getbuffer())
+                        saved_count += 1
                 except Exception as e:
                     st.error(f"Error saving {uploaded_file.name}: {e}")
             
             if saved_count > 0:
-                st.success(f"✓ Saved {saved_count} file(s) to {settings.data_dir}")
+                st.success(f"✓ Processed {saved_count} file(s)")
                 st.info("Click 'Re-ingest Documents' to update the vector store")
         
         st.divider()

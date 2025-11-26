@@ -20,28 +20,52 @@ def load_documents() -> list:
     from langchain_community.document_loaders import (
         PyPDFLoader, 
         UnstructuredImageLoader, 
-        TextLoader
+        TextLoader,
+        Docx2txtLoader,
+        UnstructuredPowerPointLoader,
+        UnstructuredExcelLoader,
+        CSVLoader,
+        BSHTMLLoader,
+        UnstructuredFileLoader
     )
 
     for file_path in settings.data_dir.rglob("*"):
         if file_path.is_file():
             try:
-                if file_path.suffix.lower() == ".pdf":
+                suffix = file_path.suffix.lower()
+                loader = None
+                
+                if suffix == ".pdf":
                     loader = PyPDFLoader(str(file_path))
-                    documents.extend(loader.load())
-                elif file_path.suffix.lower() in [".png", ".jpg", ".jpeg"]:
+                elif suffix in [".png", ".jpg", ".jpeg"]:
                     loader = UnstructuredImageLoader(str(file_path))
-                    documents.extend(loader.load())
-                elif file_path.suffix.lower() in [".txt", ".md"]:
+                elif suffix in [".txt", ".md"]:
                     loader = TextLoader(str(file_path), encoding="utf-8")
+                elif suffix == ".docx":
+                    loader = Docx2txtLoader(str(file_path))
+                elif suffix == ".pptx":
+                    loader = UnstructuredPowerPointLoader(str(file_path))
+                elif suffix == ".xlsx":
+                    loader = UnstructuredExcelLoader(str(file_path))
+                elif suffix == ".csv":
+                    loader = CSVLoader(str(file_path))
+                elif suffix == ".html":
+                    loader = BSHTMLLoader(str(file_path))
+                else:
+                    # Fallback for other file types
+                    print(f"Attempting to load {file_path} with generic loader...")
+                    loader = UnstructuredFileLoader(str(file_path))
+                
+                if loader:
                     documents.extend(loader.load())
+                    
             except Exception as e:
                 print(f"Error loading {file_path}: {e}")
                 
     if not documents:
         raise FileNotFoundError(
             f"No supported documents found in {settings.data_dir}. "
-            "Add .txt, .md, .pdf, .png, .jpg, or .jpeg files."
+            "Add supported files (PDF, Office, Images, Text, etc.)"
         )
     return documents
 
