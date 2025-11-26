@@ -1,0 +1,51 @@
+
+
+services:
+  rag-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: rag-agent
+    ports:
+      - "8501:8501"
+    environment:
+      # Groq Configuration
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - RAG_CHAT_PROVIDER=${RAG_CHAT_PROVIDER:-groq}
+      - RAG_CHAT_MODEL=${RAG_CHAT_MODEL:-openai/gpt-oss-20b}
+      - GROQ_TEMPERATURE=${GROQ_TEMPERATURE:-0.7}
+      - GROQ_MAX_TOKENS=${GROQ_MAX_TOKENS:-8192}
+      - GROQ_TOP_P=${GROQ_TOP_P:-1.0}
+      - GROQ_REASONING_EFFORT=${GROQ_REASONING_EFFORT:-medium}
+      - GROQ_BASE_URL=${GROQ_BASE_URL:-}
+      
+      # Embedding Configuration
+      - RAG_EMBEDDING_PROVIDER=${RAG_EMBEDDING_PROVIDER:-openai}
+      - RAG_EMBEDDING_MODEL=${RAG_EMBEDDING_MODEL:-text-embedding-3-small}
+      - RAG_HF_EMBEDDING_MODEL=${RAG_HF_EMBEDDING_MODEL:-sentence-transformers/all-MiniLM-L6-v2}
+      - HUGGINGFACEHUB_API_TOKEN=${HUGGINGFACEHUB_API_TOKEN:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      
+      # Data Configuration
+      - RAG_DATA_DIR=${RAG_DATA_DIR:-data/docs}
+      - RAG_VECTOR_DIR=${RAG_VECTOR_DIR:-artifacts/vectorstore}
+      - RAG_CHUNK_SIZE=${RAG_CHUNK_SIZE:-800}
+      - RAG_CHUNK_OVERLAP=${RAG_CHUNK_OVERLAP:-120}
+      
+      # Python
+      - PYTHONPATH=/app/src
+      - PYTHONUNBUFFERED=1
+      - TOKENIZERS_PARALLELISM=false
+    volumes:
+      # Mount data directory for documents
+      - ./data:/app/data:ro
+      # Mount vectorstore for persistence
+      - ./artifacts/vectorstore:/app/artifacts/vectorstore
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import sys; sys.path.insert(0, '/app/src'); from rag_agent.config import settings; exit(0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+

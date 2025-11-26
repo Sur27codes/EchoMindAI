@@ -1,0 +1,17 @@
+langchain
+langchain-community
+langchain-groq
+groq
+faiss-cpu==1.8.0.post1
+python-dotenv==1.0.1
+httpx==0.27.2
+sentence-transformers==3.0.1
+langchain-huggingface
+streamlit==1.39.0
+langchain-openai
+langchain-core
+pypdf
+unstructured
+pytesseract
+pillow
+pdf2image
