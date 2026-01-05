@@ -72,7 +72,7 @@ docker run --rm \
 docker run --rm -it \
   --env-file .env \
   -v $(pwd)/artifacts/vectorstore:/app/artifacts/vectorstore \
-  rag-agent-cli chat "What is Project X?"
+  rag-agent-cli chat "What is EchoMindAI?"
 ```
 
 ## Volume Mounts

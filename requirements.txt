@@ -19,3 +19,10 @@ docx2txt
 openpyxl
 python-pptx
 networkx
+mcp
+pandas
+matplotlib
+tabulate
+langchain-experimental
+duckduckgo-search
+gTTS

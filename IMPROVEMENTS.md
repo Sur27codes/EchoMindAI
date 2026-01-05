@@ -1,4 +1,4 @@
-# RAG Agent Project - Improvement Suggestions
+# EchoMindAI Project - Improvement Suggestions
 
 ## 🚀 High Priority Improvements
 

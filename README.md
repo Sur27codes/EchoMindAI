@@ -1,4 +1,4 @@
-# LangChain RAG Agent
+# EchoMindAI
 
 This project demonstrates a lightweight Retrieval-Augmented Generation (RAG) agent powered by LangChain, Groq (for fast LLM inference), and a local FAISS vector store.
 
