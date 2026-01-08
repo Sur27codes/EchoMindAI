@@ -29,8 +29,13 @@ def load_documents() -> list:
         UnstructuredFileLoader
     )
 
-    for file_path in settings.data_dir.rglob("*"):
-        if file_path.is_file():
+    from tqdm import tqdm
+    all_files = list(settings.data_dir.rglob("*"))
+    
+    # Filter for files only
+    all_files = [f for f in all_files if f.is_file()]
+
+    for file_path in tqdm(all_files, desc="Loading documents"):
             try:
                 suffix = file_path.suffix.lower()
                 loader = None
@@ -53,7 +58,7 @@ def load_documents() -> list:
                     loader = BSHTMLLoader(str(file_path))
                 else:
                     # Fallback for other file types
-                    print(f"Attempting to load {file_path} with generic loader...")
+                    # print(f"Attempting to load {file_path} with generic loader...")
                     loader = UnstructuredFileLoader(str(file_path))
                 
                 if loader:
@@ -88,7 +93,7 @@ def ingest_documents() -> str:
     documents = load_documents()
     chunks = split_documents(documents)
     vector_store = build_vector_store(chunks)
-    vector_store.save_local(str(settings.vector_dir), index_name="projectx")
+    vector_store.save_local(str(settings.vector_dir), index_name="echomindai")
     return str(settings.vector_dir)
 
 

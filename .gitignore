@@ -2,33 +2,37 @@
 __pycache__/
 *.py[cod]
 *$py.class
-
-# Virtual Environment
+*.so
+.Python
 .venv/
 venv/
-env/
+ENV/
 
-# Environment Variables
+# Project specific
 .env
+artifacts/vectorstore/*
+!artifacts/vectorstore/.gitkeep
+*.pkl
+*.faiss
 
-# IDEs
+# IDE
 .vscode/
 .idea/
-.DS_Store
+*.swp
+*.swo
 
-# Project Artifacts
-artifacts/vectorstore/
-# Keep the directory structure but ignore content if desired, or ignore the whole thing
-# For now, assuming vectorstore is generated and shouldn't be committed.
+# OS
+.DS_Store
+Thumbs.db
+
+# Generated Content
+static/plot_*.png
+
+# Debug & Verification Scripts
+debug_*.py
+verify_changes.py
+test_*.py
 
 # Data
-# Assuming data/docs contains user documents that shouldn't be committed
-data/docs/*
-!data/docs/.gitkeep
-
-# Docker
-docker-compose.override.yml
-
-# Temporary files
-debug_crash.py
-debug_custom_client.py
+data/
+static/plot.png

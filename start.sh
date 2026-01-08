@@ -36,9 +36,10 @@ fi
 
 echo -e "${GREEN}✓ Virtual environment activated${NC}"
 
-# Upgrade pip
+# Upgrade pip and critical dependencies
 echo -e "${GREEN}⬆️  Upgrading pip...${NC}"
 pip install --quiet --upgrade pip
+pip install --quiet --upgrade duckduckgo-search
 
 # Install/update dependencies
 if [ -f "requirements.txt" ]; then
@@ -52,24 +53,15 @@ fi
 # Check if .env exists
 if [ ! -f ".env" ]; then
     echo -e "${YELLOW}⚠️  .env file not found. Creating template...${NC}"
-    cat > .env << EOF
-# API credentials for LangChain RAG agent
-GROQ_API_KEY=gsk-your-groq-key
-# Model configuration
-RAG_CHAT_MODEL=openai/gpt-oss-20b
-# Groq parameters (matching example implementation)
-GROQ_TEMPERATURE=1.0
-GROQ_MAX_TOKENS=8192
-GROQ_TOP_P=1.0
-GROQ_REASONING_EFFORT=medium
-# Optional: Custom base URL if using a custom endpoint
-# GROQ_BASE_URL=http://localhost:8000/v1
-# Uncomment to override defaults
-# RAG_CHAT_PROVIDER=groq
-# RAG_EMBEDDING_PROVIDER=huggingface
-# RAG_HF_EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
-EOF
-    echo -e "${GREEN}✓ Template .env file created. Please update it with your API keys.${NC}"
+    # Use simple echo to avoid Heredoc EOF issues in editing
+    echo "# API credentials" > .env
+    echo "GROQ_API_KEY=gsk-your-groq-key" >> .env
+    echo "RAG_CHAT_MODEL=openai/gpt-oss-20b" >> .env
+    echo "GROQ_TEMPERATURE=1.0" >> .env
+    echo "GROQ_MAX_TOKENS=8192" >> .env
+    echo "GROQ_TOP_P=1.0" >> .env
+    echo "GROQ_REASONING_EFFORT=medium" >> .env
+    echo -e "${GREEN}✓ Template .env file created.${NC}"
 fi
 
 # Check if vector store exists
@@ -82,10 +74,22 @@ fi
 echo -e "${GREEN}🌐 Starting Streamlit application...${NC}"
 echo -e "${GREEN}   The app will open in your browser at http://localhost:8501${NC}"
 echo ""
-
-# Export PYTHONPATH to include src directory
+# Export PYTHONPATH and Suppress Warnings
 export PYTHONPATH="${SCRIPT_DIR}/src:${PYTHONPATH}"
+export TORCH_CPP_LOG_LEVEL=ERROR
+export TRANSFORMERS_NO_ADVISORY_WARNINGS=1
 
-# Start streamlit
+## 5. Check and Clear Port 8501 (Streamlit Default)
+echo "🔍 Checking port 8501..."
+if lsof -i :8501 > /dev/null; then
+    echo "⚠️  Port 8501 is busy. Killing zombie process..."
+    lsof -ti :8501 | xargs kill -9
+    sleep 2
+    echo "✅ Port cleared."
+fi
+
+echo -e "${GREEN}🌐 Starting Streamlit application...${NC}"
+echo -e "${GREEN}   The app will open in your browser at http://localhost:8501${NC}"
+echo ""
+
 streamlit run streamlit_app.py
-

@@ -7,7 +7,7 @@ python-dotenv==1.0.1
 httpx==0.27.2
 sentence-transformers==3.0.1
 langchain-huggingface
-streamlit==1.39.0
+streamlit>=1.40.0
 langchain-openai
 langchain-core
 pypdf
@@ -24,5 +24,14 @@ pandas
 matplotlib
 tabulate
 langchain-experimental
-duckduckgo-search
+duckduckgo-search>=6.3.0
 gTTS
+SpeechRecognition
+PyAudio
+mnlp
+seaborn
+yfinance
+beautifulsoup4
+lxml
+langchain-google-genai
+wikipedia

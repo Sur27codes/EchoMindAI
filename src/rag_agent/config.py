@@ -16,7 +16,7 @@ class Settings:
 
     data_dir: Path = Path(os.getenv("RAG_DATA_DIR", "data/docs"))
     vector_dir: Path = Path(os.getenv("RAG_VECTOR_DIR", "artifacts/vectorstore"))
-    embedding_provider: str = os.getenv("RAG_EMBEDDING_PROVIDER", "openai").lower()
+    embedding_provider: str = os.getenv("RAG_EMBEDDING_PROVIDER", "huggingface").lower()
     embedding_model: str = os.getenv("RAG_EMBEDDING_MODEL", "text-embedding-3-small")
     hf_embedding_model: str = os.getenv(
         "RAG_HF_EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2"

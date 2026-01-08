@@ -11,6 +11,7 @@ from datetime import datetime
 from langchain_core.tools import tool
 from langchain_experimental.utilities import PythonREPL
 from langchain_community.tools import DuckDuckGoSearchRun
+from deep_translator import GoogleTranslator
 
 from .config import settings
 
@@ -26,10 +27,25 @@ def web_search(query: str) -> str:
     Use this to find LINKS and references for the user.
     """
     try:
-        search = DuckDuckGoSearchRun()
-        return search.run(query)
+        from .tools_external import _search_ddg
+        # 1. Try robust browser-masqueraded search
+        result = _search_ddg(query, f"Web Search Results for '{query}'")
+        
+        # 2. Wikipedia Fallback (if search fails or yields generic "no results")
+        if "returned no results" in result or "Error" in result:
+             try:
+                 from langchain_community.tools import WikipediaQueryRun
+                 from langchain_community.utilities import WikipediaAPIWrapper
+                 wiki = WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper())
+                 wiki_res = wiki.run(query)
+                 if wiki_res and "No good Wikipedia Search" not in wiki_res:
+                     return f"**Wikipedia Summary:**\n{wiki_res}\n\n(Note: Primary search failed, fell back to Wikipedia.)"
+             except:
+                 pass # Fallback failed too, return original error
+                 
+        return result
     except Exception as e:
-        return f"Error searching web: {str(e)}"
+        return f"Error searching web: {e}"
 
 @tool
 def calculator(expression: str) -> str:
@@ -59,49 +75,66 @@ def calculator(expression: str) -> str:
     except Exception as e:
         return f"Error: {str(e)}"
 
+import seaborn as sns
+
 @tool
 def generate_plot(code: str) -> str:
     """
     Useful for generating charts and graphs.
-    Input should be Python code using matplotlib.pyplot as plt.
-    
-    IMPORTANT:
-    - DO NOT save the file (plt.savefig). The tool handles this automatically.
-    - DO NOT close the figure (plt.close). The tool needs the figure to remain open to save it.
-    - Just create the plot (plt.plot, plt.title, etc).
-    
-    Example code:
-    import matplotlib.pyplot as plt
-    plt.figure()
-    plt.plot([1, 2, 3], [1, 4, 9])
-    plt.title('My Plot')
+    Input should be Python code using matplotlib.pyplot as plt and seaborn as sns.
+    ALWAYS save the figure to 'static/plot.png' and return the markdown link.
     """
     try:
-        # Auto-inject the saving logic if missing? 
-        # Better to just instruct the LLM to do it via prompt, but let's handle the filename for them to be safe.
-        filename = f"chart_{int(time.time()*1000)}.png"
-        filepath = chart_dir / filename
+        # Create static dir
+        static_dir = Path("static")
+        static_dir.mkdir(parents=True, exist_ok=True)
         
-        # Prepend imports and append save logic if simple code provided
-        full_code = f"""
-import matplotlib.pyplot as plt
-import pandas as pd
-import numpy as np
-
-{code}
-
-# Ensure saved
-if len(plt.get_fignums()) > 0:
-    plt.savefig('{filepath}')
-    plt.close()
-"""
-        repl = PythonREPL()
-        output = repl.run(full_code)
+        # Enable Premium Visuals
+        sns.set_theme(style="darkgrid", palette="rocket")
         
-        if filepath.exists():
-            return f"Chart generated successfully: ![{filename}]({filepath})"
-        else:
-            return f"Executed code but no chart file was created. Output: {output}"
-            
+        # execution environment
+        local_scope = {"plt": plt, "np": np, "pd": pd, "sns": sns}
+        exec(code, {}, local_scope)
+        
+        # Save
+        filename = f"plot_{int(time.time())}.png"
+        save_path = static_dir / filename
+        plt.savefig(str(save_path))
+        plt.close()
+        
+        return f"![Chart](app/static/{filename})"
     except Exception as e:
-        return f"Error generating plot: {str(e)}"
+        return f"Error generating plot: {e}"
+
+@tool
+def save_file(filename: str, content: str) -> str:
+    """
+    Saves text or code to a file. Use this to GENERATE reports, code, or documents.
+    Args:
+        filename: Name of the file (e.g. 'report.md', 'script.py').
+        content: The full text content to write.
+    """
+    try:
+        # Save to 'generated_outputs' to keep things organized
+        out_dir = Path("data/generated_outputs")
+        out_dir.mkdir(parents=True, exist_ok=True)
+        file_path = out_dir / filename
+        
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(content)
+            
+        return f"✅ File successfully created at: `{file_path}`"
+    except Exception as e:
+        return f"Error saving file: {e}"
+
+@tool
+def translate_content(text: str, target_lang: str = "en") -> str:
+    """
+    Translate text to the target language (default 'en').
+    Use this if the user speaks a different language or asks for translation.
+    """
+    try:
+        translated = GoogleTranslator(source='auto', target=target_lang).translate(text)
+        return translated
+    except Exception as e:
+        return f"Error translating: {e}"
