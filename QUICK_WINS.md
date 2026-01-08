@@ -1,6 +1,6 @@
 # Quick Wins - Easy Improvements You Can Implement Now
 
-## 1. Add Streaming Responses (30 minutes)
+## 1. [DONE] Add Streaming Responses (Implemented)
 
 Update `streamlit_app.py` to support streaming:
 
@@ -30,7 +30,7 @@ def ask_stream(self, question: str, chat_history=None):
         yield chunk
 ```
 
-## 2. Add Logging (15 minutes)
+## 2. [DONE] Add Logging (Implemented)
 
 Create `src/rag_agent/logger.py`:
 ```python
@@ -68,7 +68,7 @@ def ingest_documents():
     vector_store.save_local(...)
 ```
 
-## 4. Add .gitignore (5 minutes)
+## 4. [DONE] Add .gitignore (Implemented)
 
 Create `.gitignore`:
 ```
@@ -178,7 +178,7 @@ if st.button("Health Check"):
         st.error(f"✗ Error: {e}")
 ```
 
-## 10. Add Conversation Export (15 minutes)
+## 10. [DONE] Add Conversation Export (Implemented)
 
 In Streamlit:
 ```python
