@@ -10,6 +10,7 @@ ENV/
 
 # Project specific
 .env
+*.log
 artifacts/vectorstore/*
 !artifacts/vectorstore/.gitkeep
 *.pkl

@@ -3,232 +3,153 @@ def get_custom_css():
     return """
     </style>
     
-    </style>
-    
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <script>
     (function() {
-        console.log("Initializing Neon Particle Sandbox...");
+        console.log("Initializing Neon Rain Game...");
         
-        // 1. Setup Canvas
-        const canvas = document.createElement('canvas');
-        canvas.id = 'neon-sandbox-canvas';
-        canvas.style.position = 'fixed';
-        canvas.style.top = '0';
-        canvas.style.left = '0';
-        canvas.style.width = '100%';
-        canvas.style.height = '100%';
-        canvas.style.zIndex = '0'; // Behind everything
-        canvas.style.pointerEvents = 'none'; // Click through to UI
-        
-        // Remove old if exists
-        const existing = document.getElementById('neon-sandbox-canvas');
-        if (existing) existing.remove();
-        
-        document.body.appendChild(canvas);
-        const ctx = canvas.getContext('2d');
-        
-        let width, height;
-        
-        // 2. Physics Configuration
-        const CONFIG = {
-            particleCount: 150,
-            connectionDistance: 100,
-            mouseRadius: 200,
-            friction: 0.95,
-            colors: ['#FF61D2', '#5C24FF', '#00EAFF', '#FFFFFF']
-        };
-
-        // 3. State
-        let particles = [];
-        let mouse = { x: -1000, y: -1000, active: false };
-        
-        function resize() {
-            width = canvas.width = window.innerWidth;
-            height = canvas.height = window.innerHeight;
-            initParticles();
+        // --- 1. SPECIAL EFFECTS: Confetti Trigger ---
+        window.triggerCelebration = function() {
+            if (window.confetti) {
+                confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 }, colors: ['#FF61D2', '#00EAFF', '#7928CA'] });
+            }
         }
-        window.addEventListener('resize', resize);
+
+        // --- 2. GAME: Falling Neon Bars ---
+        const canvas = document.createElement('canvas');
+        canvas.id = 'dynamic-wallpaper';
+        Object.assign(canvas.style, {
+            position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
+            zIndex: 0, pointerEvents: 'none' // Click-through, but mousemove works on document
+        });
+        const existing = document.getElementById('dynamic-wallpaper');
+        if (existing) existing.remove();
+        document.body.appendChild(canvas);
         
-        // 4. Mouse Tracking (Global)
-        document.addEventListener('mousemove', (e) => {
-            mouse.x = e.clientX;
-            mouse.y = e.clientY;
-            mouse.active = true;
-        });
-
-        // Click Explosion Effect
-        document.addEventListener('mousedown', (e) => {
-            explode(e.clientX, e.clientY);
-        });
-
-        class Particle {
+        const ctx = canvas.getContext('2d');
+        let width, height;
+        let bars = [];
+        let score = 0;
+        const mouse = { x: -100, y: -100 };
+        
+        const COLORS = ['#c764ec', '#4a36b1', '#8c53ff', '#00EAFF', '#FF61D2'];
+        
+        class Bar {
             constructor() {
+                this.w = Math.random() * 5 + 2; // Thin neon bars
+                this.h = Math.random() * 80 + 40; // Long
                 this.x = Math.random() * width;
-                this.y = Math.random() * height;
-                this.vx = (Math.random() - 0.5) * 2;
-                this.vy = (Math.random() - 0.5) * 2;
-                this.size = Math.random() * 2 + 1;
-                this.color = CONFIG.colors[Math.floor(Math.random() * CONFIG.colors.length)];
-                this.origSize = this.size;
+                this.y = -this.h - (Math.random() * 500); // Start above screen
+                this.speed = Math.random() * 2 + 1.5;
+                this.color = COLORS[Math.floor(Math.random() * COLORS.length)];
+                this.collected = false;
             }
             
             update() {
-                // Physics
-                this.x += this.vx;
-                this.y += this.vy;
+                this.y += this.speed;
                 
-                // Mouse Interaction / "Play" Logic
-                if (mouse.active) {
-                    const dx = mouse.x - this.x;
-                    const dy = mouse.y - this.y;
-                    const dist = Math.sqrt(dx*dx + dy*dy);
-                    
-                    if (dist < CONFIG.mouseRadius) {
-                        // Repel / Swirl effect
-                        const forceDirectionX = dx / dist;
-                        const forceDirectionY = dy / dist;
-                        const force = (CONFIG.mouseRadius - dist) / CONFIG.mouseRadius;
-                        
-                        // Push away gently
-                        const dir = -1; // -1 = repel, 1 = attract
-                        this.vx += forceDirectionX * force * dir * 1.5;
-                        this.vy += forceDirectionY * force * dir * 1.5;
-                        
-                        // Grow size when near mouse
-                        this.size = Math.min(this.origSize * 3, this.size + 0.2); 
-                    } else {
-                        if (this.size > this.origSize) this.size -= 0.1;
-                    }
+                // Collection Logic (Mouse Collision)
+                // Simple box collision
+                if (mouse.x > this.x - 20 && mouse.x < this.x + this.w + 20 &&
+                    mouse.y > this.y && mouse.y < this.y + this.h) {
+                    this.collected = true;
+                    spawnSparks(this.x, this.y + this.h/2, this.color);
+                    score++;
                 }
                 
-                // Friction for control
-                this.vx *= CONFIG.friction;
-                this.vy *= CONFIG.friction;
-                
-                // Keep moving a bit
-                const minSpeed = 0.5;
-                if (Math.abs(this.vx) < minSpeed && Math.abs(this.vy) < minSpeed) {
-                     this.vx += (Math.random() - 0.5) * 0.2;
-                     this.vy += (Math.random() - 0.5) * 0.2;
+                // Reset if off bottom
+                if (this.y > height) {
+                    this.y = -this.h;
+                    this.x = Math.random() * width;
+                    this.speed = Math.random() * 2 + 1.5;
                 }
-                
-                // Wrap around screen
-                if (this.x < 0) this.x = width;
-                if (this.x > width) this.x = 0;
-                if (this.y < 0) this.y = height;
-                if (this.y > height) this.y = 0;
             }
             
             draw() {
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                if (this.collected) return;
                 ctx.fillStyle = this.color;
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = this.color;
+                ctx.fillRect(this.x, this.y, this.w, this.h);
+                ctx.shadowBlur = 0;
+            }
+        }
+        
+        let sparks = [];
+        class Spark {
+            constructor(x, y, color) {
+                this.x = x; this.y = y;
+                this.vx = (Math.random()-0.5)*10;
+                this.vy = (Math.random()-0.5)*10;
+                this.life = 1.0;
+                this.color = color;
+            }
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.life -= 0.05;
+            }
+            draw() {
+                ctx.globalAlpha = this.life;
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, 2, 0, Math.PI*2);
                 ctx.fill();
+                ctx.globalAlpha = 1.0;
             }
         }
         
-        function initParticles() {
-            particles = [];
-            for (let i = 0; i < CONFIG.particleCount; i++) {
-                particles.push(new Particle());
-            }
+        function spawnSparks(x, y, color) {
+            for(let i=0; i<8; i++) sparks.push(new Spark(x, y, color));
         }
-        
-        function explode(x, y) {
-            // Push all nearby particles away drastically
-            for (let p of particles) {
-                const dx = p.x - x;
-                const dy = p.y - y;
-                const dist = Math.sqrt(dx*dx + dy*dy);
-                
-                if (dist < 400) {
-                    const angle = Math.atan2(dy, dx);
-                    const force = 20; // Explosion force
-                    p.vx = Math.cos(angle) * force;
-                    p.vy = Math.sin(angle) * force;
-                }
-            }
+
+        function init() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+            bars = [];
+            for (let i = 0; i < 60; i++) bars.push(new Bar());
         }
         
         function animate() {
             ctx.clearRect(0, 0, width, height);
             
-            // Draw connections first
-            ctx.lineWidth = 0.5;
-            for (let i = 0; i < particles.length; i++) {
-                const p1 = particles[i];
-                // Check neighbors
-                // Optimization: only check a subset or grid (skipping for simplicity here)
-                // We'll limit checks to keep FPS high
-                for (let j = i + 1; j < particles.length; j++) {
-                    const p2 = particles[j];
-                    const dx = p1.x - p2.x;
-                    const dy = p1.y - p2.y; 
-                    const dist = Math.sqrt(dx*dx + dy*dy);
-                    
-                    if (dist < CONFIG.connectionDistance) {
-                        ctx.beginPath();
-                        ctx.strokeStyle = `rgba(100, 100, 255, ${1 - dist/CONFIG.connectionDistance})`;
-                        ctx.moveTo(p1.x, p1.y);
-                        ctx.lineTo(p2.x, p2.y);
-                        ctx.stroke();
-                    }
+            // Draw Bars
+            bars.forEach(bar => {
+                if (!bar.collected) {
+                    bar.update();
+                    bar.draw();
+                } else {
+                    // Respawn collected bar immediately at top
+                    bar.y = -bar.h - (Math.random() * 200);
+                    bar.x = Math.random() * width;
+                    bar.collected = false;
                 }
-                p1.update();
-                p1.draw();
+            });
+            
+            // Draw Sparks
+            for (let i = sparks.length - 1; i >= 0; i--) {
+                let s = sparks[i];
+                s.update();
+                s.draw();
+                if (s.life <= 0) sparks.splice(i, 1);
             }
+            
             requestAnimationFrame(animate);
         }
         
-        // Start
-        
-        resize();
+        window.addEventListener('resize', init);
+        document.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
+        init();
         animate();
-        
-        // --- 5. React-Like Interactions (Lightbox & Scroll Observer) ---
-        
-        // LIGHTBOX for Images
-        const lightbox = document.createElement('div');
-        lightbox.id = 'img-lightbox';
-        Object.assign(lightbox.style, {
-            position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
-            backgroundColor: 'rgba(0,0,0,0.9)', zIndex: 10000,
-            display: 'none', alignItems: 'center', justifyContent: 'center',
-            cursor: 'zoom-out', backdropFilter: 'blur(5px)'
+
+        // --- 3. UI DYNAMICS: Parallax (Kept) ---
+        document.addEventListener('mousemove', (e) => {
+            const cards = document.querySelectorAll('.glass-card, .stButton button');
+            const x = (window.innerWidth - e.pageX * 2) / 100;
+            const y = (window.innerHeight - e.pageY * 2) / 100;
+            cards.forEach(card => card.style.transform = `perspective(1000px) rotateX(${y * 0.05}deg) rotateY(${x * 0.05}deg) translateY(-2px)`);
         });
-        const lbImg = document.createElement('img');
-        Object.assign(lbImg.style, { maxHeight: '90%', maxWidth: '90%', borderRadius: '8px', boxShadow: '0 0 50px rgba(0,0,0,0.5)' });
-        lightbox.appendChild(lbImg);
-        document.body.appendChild(lightbox);
-        
-        lightbox.onclick = () => { lightbox.style.display = 'none'; };
-        
-        // Event Delegation for dynamically added images
-        document.body.addEventListener('click', (e) => {
-            if (e.target.tagName === 'IMG' && e.target.closest('.product-card-img-container')) {
-                lbImg.src = e.target.src;
-                lightbox.style.display = 'flex';
-            }
-        });
-        
-        // SCROLL REVEAL OBSERVER
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    entry.target.classList.add('visible');
-                    observer.unobserve(entry.target); // Once only
-                }
-            });
-        }, { threshold: 0.1 });
-        
-        // Continuously observe new elements
-        setInterval(() => {
-            document.querySelectorAll('.product-card:not(.observed), .glass-card:not(.observed)').forEach(el => {
-                el.classList.add('observed', 'hidden-state');
-                observer.observe(el);
-            });
-        }, 1000); // Check every second
-        
+
     })();
     </script>
     
@@ -247,23 +168,28 @@ def get_custom_css():
         @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
         :root {
-            /* Friendly Vibrant Palette */
-            --bg-base: #111111;
-            --bg-sidebar: rgba(20, 20, 20, 0.6);
-            --bg-card: rgba(255, 255, 255, 0.05);
-            --bg-input: rgba(255, 255, 255, 0.1);
+            /* DeepAI Inspired Violet Palette */
+            --bg-base: #101010;
+            --bg-sidebar: rgba(16, 16, 16, 0.85);
+            --bg-card: rgba(42, 40, 47, 0.4); /* Dark Violet Tint */
+            --bg-input: rgba(255, 255, 255, 0.08);
             
             --text-primary: #FFFFFF;
             --text-secondary: #E0E0E0;
             
-            --border-glass: 1px solid rgba(255, 255, 255, 0.4);
-            --shadow-glass: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
+            --border-glass: 1px solid rgba(199, 100, 236, 0.2); /* Purple Border */
+            --shadow-glass: 0 8px 32px 0 rgba(74, 54, 177, 0.2);
             
             --radius-lg: 24px;
             --radius-md: 16px;
         }
         
         /* Interactive Neon Aura */
+        body {
+            background-color: var(--bg-base); /* Moved BG here */
+            overflow-x: hidden; /* Prevent horizontal scroll */
+        }
+
         body::before {
             content: "";
             position: fixed;
@@ -290,19 +216,22 @@ def get_custom_css():
         }
 
         .stApp {
-            background-color: var(--bg-base);
-        .stApp {
-            background-color: var(--bg-base);
+            background-color: transparent !important; /* CRITICAL FIX */
+            background: transparent !important;
             /* Deep Dark Space Background */
             background-image: 
                 radial-gradient(circle at 15% 50%, rgba(20, 0, 40, 0.3) 0%, transparent 25%), 
-                radial-gradient(circle at 85% 30%, rgba(40, 0, 60, 0.2) 0%, transparent 25%), 
-                linear-gradient(180deg, #020202 0%, #080808 100%);
+                radial-gradient(circle at 85% 30%, rgba(40, 0, 60, 0.2) 0%, transparent 25%);
             background-size: 100% 100%;
-            /* No animation needed for solid dark, or a very subtle pulse */
             
             font-family: 'Outfit', sans-serif;
             color: var(--text-primary);
+        }
+        
+        /* NUCLEAR OPTION: Force all inner containers to be transparent */
+        .stApp > header, .stApp > div, .stApp .main, .stApp .block-container {
+            background: transparent !important;
+            background-color: transparent !important;
         }
         
         /* Typography */
@@ -314,6 +243,21 @@ def get_custom_css():
         
         code {
             font-family: 'JetBrains Mono', monospace !important;
+        }
+
+        /* --- MATH & TEXT VISIBILITY FIX --- */
+        /* Force high contrast for all math elements */
+        .katex, .katex-display, .katex-html {
+            color: #FFFFFF !important;
+            opacity: 1 !important;
+            text-shadow: 0 0 1px rgba(0,0,0,0.8); /* Sharpness against dark bg */
+            font-weight: 500 !important;
+        }
+        
+        /* Ensure normal text doesn't fade */
+        .stMarkdown p, .stMarkdown li, .stMarkdown span {
+            color: #FFFFFF !important;
+            text-rendering: optimizeLegibility;
         }
 
         /* Sidebar Styling */
@@ -353,8 +297,56 @@ def get_custom_css():
             filter: drop-shadow(0 0 10px rgba(255, 97, 210, 0.3));
         }
 
+        /* --- ANIMATIONS & FUN --- */
+        
+        /* 1. Neural Pulse Loader (Replaces Spinner) */
+        .neural-loader {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: radial-gradient(circle, #00EAFF, #5C24FF);
+            box-shadow: 0 0 20px #00EAFF;
+            animation: pulse-ring 1.5s infinite;
+        }
+        
+        @keyframes pulse-ring {
+            0% { transform: scale(0.8); box-shadow: 0 0 0 0 rgba(0, 234, 255, 0.7); }
+            70% { transform: scale(1.1); box-shadow: 0 0 0 20px rgba(0, 234, 255, 0); }
+            100% { transform: scale(0.8); box-shadow: 0 0 0 0 rgba(0, 234, 255, 0); }
+        }
+
+        /* 2. Typewriter Effect */
+        .typewriter h1 {
+            overflow: hidden; 
+            border-right: .15em solid #FF61D2; 
+            white-space: nowrap; 
+            margin: 0 auto; 
+            letter-spacing: .15em; 
+            animation: 
+              typing 3.5s steps(40, end),
+              blink-caret .75s step-end infinite;
+        }
+
+        @keyframes typing {
+          from { width: 0 }
+          to { width: 100% }
+        }
+
+        @keyframes blink-caret {
+          from, to { border-color: transparent }
+          50% { border-color: #FF61D2; }
+        }
+        
         /* Chat Bubbles */
-        .stChatMessage { background: transparent; }
+        .stChatMessage { 
+            background: transparent; 
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
         
         /* User Bubble */
         div[data-testid="stChatMessage"][data-testid="stChatMessage-user"] div[data-testid="stChatMessageContent"] {
@@ -366,14 +358,16 @@ def get_custom_css():
             box-shadow: 0 4px 15px rgba(0,0,0,0.1);
         }
         
-        /* Assistant Bubble */
+        /* Assistant Bubble - Glass Dark with Glow */
         div[data-testid="stChatMessage"][data-testid="stChatMessage-assistant"] div[data-testid="stChatMessageContent"] {
-            background: rgba(0, 0, 0, 0.2);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-left: 3px solid #FF61D2;
+            background: linear-gradient(145deg, rgba(20, 20, 30, 0.9), rgba(10, 10, 15, 0.95));
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-left: 2px solid #00EAFF; /* Electric Blue Accent */
             border-radius: 4px 20px 20px 20px !important;
-            padding: 16px 24px !important;
-            color: #FFFFFF !important; /* Force white text */
+            padding: 20px 28px !important;
+            color: #FFFFFF !important;
+            box-shadow: 0 4px 20px rgba(0, 234, 255, 0.05); /* Subtle glow */
+            font-weight: 400; /* Ensure readability */
         }
         
         /* Ensure all nested text elements are white */
@@ -648,7 +642,7 @@ def get_custom_css():
     }
 
     /* --- PRODUCT CARDS (GRID LAYOUT) --- */
-    .product-grid {
+    .product-grid, section.product-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
         gap: 20px;
@@ -728,7 +722,7 @@ def get_custom_css():
     
     .product-card .description {
         font-size: 0.85rem;
-        color: #B0B0B0;
+        color: #E0E0E0; /* Improved contrast */
         margin-bottom: 16px;
         flex-grow: 1;
         line-height: 1.5;
@@ -758,7 +752,117 @@ def get_custom_css():
         color: #666;
         font-size: 0.8rem;
     }
-        
+
+    /* --- INNOVATIVE WEATHER CARD --- */
+    .weather-card, section.weather-card {
+        background: linear-gradient(145deg, rgba(255, 255, 255, 0.1), rgba(0, 0, 0, 0.2));
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 24px;
+        padding: 0;
+        margin: 20px 0;
+        overflow: hidden;
+        color: white;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        position: relative;
+    }
+    
+    .weather-header {
+        padding: 30px;
+        background: linear-gradient(to right, rgba(92, 36, 255, 0.2), rgba(255, 97, 210, 0.1));
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    
+    .weather-main {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+    }
+    
+    .weather-temp-big {
+        font-size: 4rem;
+        font-weight: 800;
+        background: linear-gradient(to bottom, #fff, #ccc);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        line-height: 1;
+    }
+    
+    .weather-meta {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+    
+    .weather-condition {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #FF61D2;
+    }
+    
+    .weather-location {
+        font-size: 1.1rem;
+        opacity: 0.8;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    
+    .weather-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1px;
+        background: rgba(255,255,255,0.1); /* Separator color */
+    }
+    
+    .weather-stat-item {
+        background: rgba(20, 20, 20, 0.6); /* Restore bg */
+        padding: 15px;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+    
+    .stat-label { font-size: 0.8rem; opacity: 0.7; text-transform: uppercase; letter-spacing: 1px; }
+    .stat-value { font-size: 1.1rem; font-weight: 600; }
+    
+    .weather-forecast-scroll {
+        display: flex;
+        overflow-x: auto;
+        padding: 20px;
+        gap: 15px;
+        background: rgba(0,0,0,0.2);
+        scrollbar-width: thin;
+        scrollbar-color: rgba(255,255,255,0.2) transparent;
+    }
+    
+    .forecast-item {
+        min-width: 100px;
+        background: rgba(255,255,255,0.05);
+        border-radius: 16px;
+        padding: 15px 10px;
+        text-align: center;
+        border: 1px solid rgba(255,255,255,0.05);
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        transition: transform 0.2s ease, background 0.2s ease;
+    }
+    
+    .forecast-item:hover {
+        background: rgba(255, 255, 255, 0.15);
+        transform: translateY(-5px);
+    }
+    
+    .forecast-date { font-weight: 600; color: #FF61D2; font-size: 0.9rem; }
+    .forecast-icon { font-size: 2rem; margin: 5px 0; }
+    .forecast-temp { font-weight: 700; }
+    .forecast-desc { font-size: 0.75rem; opacity: 0.7; line-height: 1.2; }
+
     </style>
     """
 

@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import os
 import sys
+import re
+import json
 import time
 from pathlib import Path
 import warnings
@@ -49,16 +51,14 @@ if "processing" not in st.session_state:
 
 
 def initialize_agent():
-    """Initialize the RAG agent."""
+    """Initialize the RAG agent with visual feedback."""
     try:
         if st.session_state.agent is None:
-            # Silent loading for better UX
-            st.session_state.agent = RAGAgent()
+            with st.spinner("🧠 Waking up EchoMindAI..."):
+                st.session_state.agent = RAGAgent()
         return st.session_state.agent
-    except FileNotFoundError:
-        return None
     except Exception as e:
-        st.error(f"Error initializing agent: {e}")
+        st.error(f"System Boot Error: {e}")
         return None
 
 
@@ -147,6 +147,7 @@ def render_sidebar():
         with tab_settings:
             st.caption("Modes")
             st.session_state.deep_research_mode = st.toggle("Deep Research Agent", value=False)
+            st.session_state.debug_mode = st.toggle("🐞 Debug Mode", value=False, help="Show raw agent steps and tool outputs.")
             
             st.caption("Voice")
             # Using st.audio_input (handled in handle_voice_input call below or inline)
@@ -333,7 +334,11 @@ def handle_voice_input():
                     
         except Exception as e:
             status.update(label="❌ Voice Error", state="error")
-            st.error(f"Error: {e}")
+            error_msg = str(e)
+            if "401" in error_msg or "Unauthorized" in error_msg:
+                 st.error("Authentication Failed (401). Please check your OPENAI_API_KEY or GROQ_API_KEY in .env.")
+            else:
+                 st.error(f"Error: {e}")
 
 
 
@@ -392,44 +397,65 @@ EchoMindAI is an advanced Retrieval-Augmented Generation (RAG) system designed t
 
 def render_welcome_screen():
     """Render the premium zero-state welcome screen."""
+    # 1. Hero Section
     welcome_html = """
-    <div style="text-align: center; margin-top: 3rem; margin-bottom: 3rem;" class="animate-fade-in">
-        <h1 style="font-size: 3.5rem; margin-bottom: 1rem; font-weight: 800; letter-spacing: -1px;">
-            <span>EchoMindAI</span>
-        </h1>
-        <p style="font-size: 1.2rem; color: rgba(255,255,255,0.7); max-width: 600px; margin: 0 auto; line-height: 1.6;">
-            Enterprise Intelligence with Vision & Voice
+    <div style="text-align: center; margin-top: 3rem; margin-bottom: 2rem;" class="animate-fade-in">
+        <div class="typewriter" style="display: inline-block;">
+            <h1 style="font-size: 4rem; margin-bottom: 0.5rem; font-weight: 800; letter-spacing: -2px;">
+                <span class="gradient-text">EchoMindAI</span>
+            </h1>
+        </div>
+        <p style="font-size: 1.3rem; color: #E0E0E0; max-width: 700px; margin: 0 auto; line-height: 1.6; font-weight: 400;">
+            Your All-Knowing AI Companion. <br>
+            <span style="opacity: 0.7; font-size: 1.1rem;">Capable of Real-Time Web Search, Deep Analysis, and Multimodal Creation.</span>
         </p>
     </div>
     """
     st.markdown(welcome_html, unsafe_allow_html=True)
 
-    # Feature Suggestion Cards (5 items)
-    # Using 'secondary' kind to trigger our glassmorphism CSS
+    # 2. Quick Action Buttons
     cols = st.columns(5)
-    
     features = [
-        ("🎨 Images", "Generate a photo of a futuristic city"),
-        ("🛍️ Shopping", "Find top rated running shoes"),
-        ("📰 News", "Latest AI news today"),
-        ("xk Weather", "Weather in New York"), # User requested "xk" styled weather? Kept simple.
-        ("✈️ Bookings", "Find luxury hotels in Dubai")
-    ]
-    
-    # Correction: User likely meant "Weather" but used "xk". I will use standard weather icon.
-    features = [
-        ("🎨 Images", "Generate a photo of a futuristic city"),
-        ("🛍️ Shopping", "Find top rated running shoes"),
+        ("🎨 Create", "Generate a photo of a futuristic city"),
+        ("🛍️ Shop", "Find top rated running shoes"),
         ("📰 News", "Latest AI news today"),
         ("⛅ Weather", "Weather in Tokyo"),
-        ("✈️ Bookings", "Find luxury hotels in Dubai")
+        ("✈️ Travel", "Find luxury hotels in Dubai")
     ]
-
+    
     for col, (label, prompt) in zip(cols, features):
         with col:
-            # We use a trick: Button label is the Icon+Name
             if st.button(label, use_container_width=True, type="secondary"):
                 submit_query(prompt)
+
+    # 3. Capabilities Matrix (Visual Guide)
+    st.markdown("""
+    <div style="margin-top: 3rem; padding: 2rem; background: rgba(255,255,255,0.03); border-radius: 20px; border: 1px solid rgba(255,255,255,0.1);">
+        <h3 style="text-align: center; margin-bottom: 1.5rem; font-size: 1.2rem; color: #fff;">🚀 Core Capabilities</h3>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem;">
+            <div style="text-align: center;">
+                <div style="font-size: 2rem; margin-bottom: 0.5rem;">🌐</div>
+                <strong style="color: #fff;">Live Web Search</strong>
+                <p style="font-size: 0.9rem; color: #aaa; margin: 0;">Access real-time world data, not just training sets.</p>
+            </div>
+            <div style="text-align: center;">
+                <div style="font-size: 2rem; margin-bottom: 0.5rem;">👁️</div>
+                <strong style="color: #fff;">Visual Intelligence</strong>
+                <p style="font-size: 0.9rem; color: #aaa; margin: 0;">Upload images to get analysis, shopping links, or code.</p>
+            </div>
+            <div style="text-align: center;">
+                <div style="font-size: 2rem; margin-bottom: 0.5rem;">🧠</div>
+                <strong style="color: #fff;">RAG Memory</strong>
+                <p style="font-size: 0.9rem; color: #aaa; margin: 0;">Chat with your PDFs, Docs, and Data instantly.</p>
+            </div>
+            <div style="text-align: center;">
+                <div style="font-size: 2rem; margin-bottom: 0.5rem;">🛠️</div>
+                <strong style="color: #fff;">Deep Research</strong>
+                <p style="font-size: 0.9rem; color: #aaa; margin: 0;">Autonomous agent that browses and compiles reports.</p>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
 
 def submit_query(text):
@@ -438,20 +464,246 @@ def submit_query(text):
     st.rerun()
 
 
-def render_chat_message(role, content, sources=None):
-    """Render a chat message with the new glass styling."""
-    with st.chat_message(role):
-        # Strip code blocks if it's HTML content to allow rendering
-        if "div class=" in content or "product-grid" in content:
-            content = content.replace("```html", "").replace("```", "")
-        st.markdown(content, unsafe_allow_html=True)
+def extract_balanced_tag(text, start_match, tag_name):
+    """
+    Extracts a balanced tag (div/section) starting from the regex match.
+    start_match: the re.Match object for the opening tag
+    tag_name: "div" or "section"
+    Returns: (content_string, end_index_absolute)
+    """
+    start_idx = start_match.start()
+    
+    balance = 0
+    # Regex to find open/close tags of this specific type
+    # e.g. <div... or </div>
+    pattern = re.compile(f'(<{tag_name}\\b[^>]*>|</{tag_name}>)', re.IGNORECASE)
+    
+    for match in pattern.finditer(text, start_idx):
+        tag = match.group(0).lower()
+        if tag.startswith(f'<{tag_name}'):
+            balance += 1
+        else:
+            balance -= 1
         
+        if balance == 0:
+            return text[start_idx:match.end()], match.end()
+            
+    return None, -1
+
+def parse_mixed_content(text):
+    """Splits text into text and HTML widget chunks using balanced parsing."""
+    import re
+
+    # PRE-PROCESSING: Global Stripper
+    # If a financial card exists, remove ALL backticks to prevent code block rendering
+    if 'class="financial-card"' in text:
+        text = text.replace("```html", "").replace("```xml", "").replace("```", "")
+        
+    parts = []
+    current_idx = 0
+    
+    # regex for the START of any supported widget
+    # We find the *first* one, extract it balanced, then continue
+    # UPDATED: Support both single and double quotes for class attributes
+    start_pattern = re.compile(
+        r'(<section\s+class=["\']weather-card["\']>|<section\s+class=["\']product-grid["\']>|<div\s+class=["\']product-card["\']>|<div\s+class=["\']financial-card["\'])', 
+        re.IGNORECASE
+    )
+    
+    while current_idx < len(text):
+        subtext = text[current_idx:]
+        match = start_pattern.search(subtext)
+        
+        if not match:
+            # No more widgets
+            if subtext:
+                parts.append({"type": "text", "content": subtext})
+            break
+            
+        rel_start = match.start()
+        abs_start = current_idx + rel_start
+        
+        # Add preceding text
+        if abs_start > current_idx:
+            parts.append({"type": "text", "content": text[current_idx:abs_start]})
+            
+        # Determine tag type (div or section) from the match
+        tag_str = match.group(0).lower()
+        tag_type = "section" if tag_str.startswith("<section") else "div"
+        
+        # Extract balanced content
+        widget_content, abs_end = extract_balanced_tag(text, match, tag_type) # match is relative to subtext?? 
+        # Wait, extract_balanced_tag takes 'text' and 'start_match'. 
+        # But 'match' was found in 'subtext'. 'match.start()' is relative.
+        # We need a match object that is absolute, OR pass subtext.
+        # Let's use subtext logic inside the loop.
+        
+        # FIX: Call extract on SUBTEXT, then adjust indices
+        w_content, w_end_rel = extract_balanced_tag(subtext, match, tag_type)
+        
+        if w_content:
+            parts.append({"type": "html", "content": w_content})
+            current_idx += w_end_rel
+        else:
+            # Parsing failed (no closing tag?), treat start as text and forward 1 char to avoid infinite loop
+            parts.append({"type": "text", "content": subtext[:rel_start+1]})
+            current_idx += rel_start + 1
+            
+    return parts
+
+def unindent_text(text):
+    """Remove common leading whitespace from every line."""
+    lines = text.splitlines()
+    if not lines: return text
+    
+    # Find minimum indentation of non-empty lines
+    min_indent = 1000
+    for line in lines:
+        if line.strip():
+            indent = len(line) - len(line.lstrip())
+            if indent < min_indent:
+                min_indent = indent
+                
+    if min_indent == 1000 or min_indent == 0:
+        return text
+        
+    return "\n".join([line[min_indent:] for line in lines])
+
+def render_chat_message(role, content, sources=None):
+    """Render a chat message with mixed content handling."""
+    with st.chat_message(role):
+        # 1. Parse Mixed Content (Text vs Widgets)
+        chunks = parse_mixed_content(content)
+        
+        for chunk in chunks:
+            if chunk["type"] == "text":
+                # Render text normally
+                text = chunk["content"]
+                
+                # CLEANUP: Dedent text to prevent Markdown Code Blocks
+                text = unindent_text(text)
+                
+                # 4. Render Generic Visualization Tool Charts
+                # Format: <!-- CHART_TOOL_JSON: {...} -->
+                tool_chart_match = re.search(r'<!-- CHART_TOOL_JSON: (.*?) -->', text)
+                if tool_chart_match:
+                    try:
+                        import plotly.express as px
+                        import pandas as pd
+                        
+                        payload = json.loads(tool_chart_match.group(1))
+                        # Remove comment from text so it doesn't clutter the markdown logic
+                        text = text.replace(tool_chart_match.group(0), "")
+                        
+                        df = pd.DataFrame(payload['data'])
+                        c_type = payload.get('type', 'line')
+                        
+                        # Render the text *before* the chart? Or after?
+                        # If we modified 'text', we need to re-render it? 
+                        # Chunk logic: 'if text.strip(): st.markdown(text)' happens BEFORE this block in the original code?
+                        # No, check the order.
+                        
+                        # Current order in file:
+                        # 1. Unindent
+                        # 2. Check Chart Data (Stock Old)
+                        # 3. Render Text -> st.markdown(text)
+                        # 4. Render Stock Chart (if chart_data)
+                        # 5. Render Chart Tool (if tool_chart_match)
+                        
+                        # Issue: standard 'text' is rendered at step 3. 
+                        # We are modifying 'text' at step 5! Too late!
+                        # The comment is already inside the rendered markdown (invisible).
+                        
+                        # To fix: move detection UP, before st.markdown.
+                        pass # Placeholder for logic move
+                    except:
+                        pass
+                
+                # RESTRUCTURED LOGIC BELOW
+                
+                # 1. Detect & Strip Stock Chart Data (Old)
+                chart_match = re.search(r'<!-- CHART_DATA_JSON: (.*?) -->', text)
+                chart_data = None
+                if chart_match:
+                    try:
+                         chart_data = json.loads(chart_match.group(1))
+                         text = text.replace(chart_match.group(0), "")
+                    except: pass
+
+                # 2. Detect & Strip Tool Chart Data (New)
+                tool_chart_match = re.search(r'<!-- CHART_TOOL_JSON: (.*?) -->', text)
+                tool_payload = None
+                if tool_chart_match:
+                    try:
+                        tool_payload = json.loads(tool_chart_match.group(1))
+                        text = text.replace(tool_chart_match.group(0), "")
+                    except: pass
+
+                # 3. Render Text
+                # Relaxed check for "financial-card"
+                if "financial-card" in text and ("class=" in text or "class:" in text):
+                     st.html(text)
+                else:
+                    if text.strip():
+                        st.markdown(text, unsafe_allow_html=True)
+                        
+                # 4. Render Stock Chart (Old - Keep for compatibility)
+                if chart_data:
+                    st.caption("📉 Price History (1 Month)")
+                    st.line_chart(chart_data, x="Date", y="Close", color="#4caf50")
+                    
+                # 5. Render Tool Chart (New - Plotly)
+                if tool_payload:
+                    try:
+                        import plotly.express as px
+                        import pandas as pd
+                        
+                        df = pd.DataFrame(tool_payload['data'])
+                        c_type = tool_payload.get('type', 'line')
+                        title = tool_payload.get('title', 'Chart')
+                        
+                        st.caption(f"📊 {title}")
+                        
+                        if c_type == 'bar':
+                            fig = px.bar(df, x=tool_payload['x'], y=tool_payload['y'])
+                        elif c_type == 'scatter':
+                            fig = px.scatter(df, x=tool_payload['x'], y=tool_payload['y'])
+                        elif c_type == 'pie':
+                            fig = px.pie(df, names=tool_payload['x'], values=tool_payload['y'])
+                        else:
+                            fig = px.line(df, x=tool_payload['x'], y=tool_payload['y'])
+                            
+                        # Improve Plotly Layout
+                        fig.update_layout(margin=dict(l=20, r=20, t=30, b=20), height=300)
+                        st.plotly_chart(fig, use_container_width=True)
+                        
+                    except Exception as e:
+                        st.error(f"Error rendering chart: {e}")
+                    
+            elif chunk["type"] == "html":
+                # Render widgets cleanly
+                st.html(chunk["content"])
+
+        # Footer with metadata
+        if role == "assistant":
+            st.markdown(
+                "<div style='margin-top: 8px; font-size: 0.75rem; color: rgba(255,255,255,0.4); display: flex; align-items: center; gap: 6px;'>"
+                "<span>⚡ EchoMindAI</span>"
+                "<span style='width: 3px; height: 3px; background: #555; border-radius: 50%;'></span>"
+                "<span>GPT-4o</span>"
+                "<span style='width: 3px; height: 3px; background: #555; border-radius: 50%;'></span>"
+                f"<span>{time.strftime('%H:%M')}</span>"
+                "</div>", 
+                unsafe_allow_html=True
+            )
+
         if sources and role == "assistant":
-            with st.expander(f"📚 {len(sources)} References"):
+            # Styled Expander
+            with st.expander(f"📚 View {len(sources)} Sources"):
                 for i, source in enumerate(sources, 1):
                     src_name = source.get('metadata', {}).get('source', 'Unknown')
                     st.caption(f"**Source {i}: {src_name}**")
-                    st.markdown(f"<div style='font-size: 0.85rem; color: #cbd5e1; border-left: 2px solid #475569; padding-left: 10px;'>{source['content'][:250]}...</div>", unsafe_allow_html=True)
+                    st.markdown(f"<div style='font-size: 0.85rem; color: #cbd5e1; border-left: 2px solid #475569; padding-left: 10px; margin-bottom: 10px;'>{source['content'][:300]}...</div>", unsafe_allow_html=True)
                     if i < len(sources):
                         st.divider()
 
@@ -558,7 +810,12 @@ def main():
                 # --- STANDARD MODE ---
             else:
                     try:
-                        # 1. Thinking Status
+                        # 1. Thinking Status (Restored Clean UI)
+                        if st.session_state.get("debug_mode", False):
+                            with st.expander("🐞 Agent Trace (Debug)", expanded=True):
+                                st.write("**Input:**", prompt)
+                                st.caption("Streaming raw thoughts...")
+
                         with st.status("🧠 Analyzing...", expanded=False) as status:
                             st.write("Checking Knowledge Base & Tools...")
                             status.update(label="✅ Response Ready", state="complete", expanded=False)
@@ -566,25 +823,128 @@ def main():
                         # 2. Streaming Response & Image Detection
                         full_response = ""
                         response_container = st.empty()
+                        stop_container = st.empty() # Container for stop button
+                        stop_generating = False
+                        
                         import re
                         
+                        # Stop Button UI
+                        with stop_container:
+                            if st.button("⏹ Stop Generating", key="stop_gen_btn"):
+                                stop_generating = True
+
                         for chunk in agent.ask_stream(prompt):
+                            # Check for stop signal (session state or button)
+                            # Note: Buttons in loops are tricky in Streamlit. 
+                            # Ideally we check session state, but immediate button requires rerun.
+                            # We use a placeholder approach.
+                            
                             full_response += chunk
-                            # Real-time sanitization: Only hide LOCAL images (charts), allow external URLs (http/https) to show
-                            # Regex matches ![alt](path) where path DOES NOT start with http or https
-                            # Also strip ```html wrapper if present
-                            display_text = full_response
-                            display_text = re.sub(r'```html\s*', '', display_text)
-                            display_text = re.sub(r'```', '', display_text) # Cleaning trailing
+                            
+                            # Debug: Show raw tokens if debug mode is on
+                            if st.session_state.get("debug_mode", False):
+                                # We can't easily stream to two places without buffering, 
+                                # but we can log unique large chunks or tool calls if we had them intercepted.
+                                # For now, we'll just show the final raw output in the expander at the end.
+                                pass
+
+                            # Helper to clean response
+                            def clean_response(text):
+                                pattern = re.compile(r'```html\s*(.*?)\s*```', re.DOTALL | re.IGNORECASE)
+                                match = pattern.search(text)
+                                if match:
+                                    return match.group(1)
+                                text = re.sub(r'```\w*\s*', '', text) 
+                                text = re.sub(r'```', '', text)
+                                
+                                # --- MATH RENDERING FIXER ---
+                                # Convert standard LaTeX delimiters to Streamlit's required $$ format
+                                
+                                # 1. Replace explicit LaTeX \[ ... \] with $$ ... $$
+                                text = text.replace(r'\[', '$$').replace(r'\]', '$$')
+                                
+                                # 2. Replace explicit LaTeX \( ... \) with $ ... $
+                                text = text.replace(r'\(', '$').replace(r'\)', '$')
+                                
+                                # 3. SMART Bracket Detection
+                                # Only convert [ ... ] to $$ ... $$ if it looks like math and NOT a list/JSON
+                                # We check for typical math symbols (=, +, -, \frac, ^) and ensure it's not just quoted strings
+                                def smart_math_replacer(match):
+                                    content = match.group(1)
+                                    # Anti-match: if it looks like a list "['a', 'b']" or "{"a":1}", ignore it
+                                    if re.search(r"^['\"]|['\"]$|,\s*['\"]", content.strip()): 
+                                        return f"[{content}]"
+                                        
+                                    # Pro-match: indicators of math
+                                    if any(x in content for x in ['=', '\\', '^', '_', '+', '-']) or len(content) > 3:
+                                        return f"$${content}$$"
+                                        
+                                    return f"[{content}]"
+                                
+                                # Only target brackets appearing at start of lines or standalone for safety
+                                text = re.sub(r'(?m)^\[(.*?)\]$', smart_math_replacer, text)
+                                
+                                # --- INDENTATION FIXER ---
+                                # Un-indent HTML blocks that might be treated as code by Markdown
+                                def unindent_block(match):
+                                    block = match.group(0)
+                                    return "\n".join([line.strip() for line in block.splitlines()])
+
+                                # Fix indentation for our specific widgets if they appear indented
+                                text = re.sub(r'((?:    )+<div class="financial-card".*?(?:<!-- END_FINANCIAL_CARD -->|</div>\s*</div>))', unindent_block, text, flags=re.DOTALL)
+                                
+                                return text
+
+                            # Real-time sanitization
+                            display_text = clean_response(full_response)
+                            
+                            # Safety Net: If regex missed it but it looks like a financial card, Force HTML rendering
+                            # Fix: Ensure backticks are gone so it doesn't render as code block
+                            if "class=\"financial-card\"" in display_text or "class='financial-card'" in display_text:
+                                display_text = re.sub(r'```(?:html|xml)?', '', display_text)
+                                display_text = display_text.replace('```', '')
+                                # We let st.markdown render it, but now without backticks it will render as HTML because of unsafe_allow_html=True
+                                pass 
+                            
                             display_text = re.sub(r'!\[.*?\]\((?!http|https).*?\)', ' *(Generating chart...)* ', display_text)
                             response_container.markdown(display_text + "▌", unsafe_allow_html=True)
                         
-                        # Final clean display: Only hide LOCAL images
-                        display_text = full_response
-                        display_text = re.sub(r'```html\s*', '', display_text)
-                        display_text = re.sub(r'```', '', display_text)
-                        display_text = re.sub(r'!\[.*?\]\((?!http|https).*?\)', ' *(See chart below)* ', display_text)
-                        response_container.markdown(display_text, unsafe_allow_html=True)
+                        # Clear Stop Button
+                        stop_container.empty()
+                        
+                        # Final display
+                        cleaned_text = clean_response(full_response)
+                        cleaned_text = re.sub(r'!\[.*?\]\((?!http|https).*?\)', ' *(See chart below)* ', cleaned_text)
+                        
+                        # Parsing Mixed Content (Text + HTML Widgets)
+                        # We explicitly use parse_mixed_content to ensure <section> tags render as HTML
+                        # and text renders as Markdown.
+                        parts = parse_mixed_content(cleaned_text)
+                        
+                        # Clear the streaming placeholder
+                        response_container.empty()
+                        
+                        # Render parts sequentially
+                        for part in parts:
+                            if part["type"] == "text":
+                                if part["content"].strip():
+                                    st.markdown(part["content"])
+                            else:
+                                st.markdown(part["content"], unsafe_allow_html=True)
+
+                        if st.session_state.get("debug_mode", False):
+                            with st.expander("🐞 Raw Output (Debug)"):
+                                st.code(full_response)
+                        
+                        # UI Feature: Copy Button (Bottom Right, Minimal)
+                        st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True) # Spacer
+                        col_spacer, col_copy = st.columns([0.85, 0.15])
+                        with col_copy:
+                             # Using a popover for a cleaner "Copy" interaction (Streamlit 1.30+)
+                             # Falls back to standard expader behavior if popover not robust in this version,
+                             # but using a localized expander is safer. We make it "text only" label.
+                             with st.popover("📋 Copy"):
+                                 st.code(full_response, language=None)
                         
                         # 3. Chart Rendering (The real image)
                         # 3. Chart Rendering (The real image)
@@ -633,6 +993,8 @@ def main():
                                 openai_key = os.getenv("OPENAI_API_KEY")
                                 voice_model = st.session_state.get("voice_selection", "nova")
                                 
+                                audio_data = None
+                                
                                 if openai_key:
                                     try:
                                         client = OpenAI(api_key=openai_key)
@@ -646,28 +1008,38 @@ def main():
                                         audio_bytes = io.BytesIO()
                                         for chunk in response.iter_bytes():
                                             audio_bytes.write(chunk)
-                                        
-                                        audio_bytes.seek(0) # CRITICAL FIX: Reset pointer
-                                        st.audio(audio_bytes, format="audio/mp3")
+                                        audio_bytes.seek(0)
+                                        audio_data = audio_bytes
                                     except Exception as e:
-                                        # Fallback to gTTS if OpenAI fails (e.g. quota)
                                         print(f"OpenAI TTS failed: {e}. Falling back to gTTS.")
+                                        audio_data = None
+
+                                if not audio_data:
+                                    # Fallback to gTTS
+                                    try:
                                         from gtts import gTTS
                                         tts = gTTS(text=clean_text, lang='en')
                                         audio_fp = io.BytesIO()
                                         tts.write_to_fp(audio_fp)
                                         audio_fp.seek(0)
-                                        st.audio(audio_fp, format='audio/mp3')
-                                else:
-                                    # Default to gTTS if no key
-                                    from gtts import gTTS
-                                    tts = gTTS(text=clean_text, lang='en')
-                                    audio_fp = io.BytesIO()
-                                    tts.write_to_fp(audio_fp)
-                                    audio_fp.seek(0)
-                                    st.audio(audio_fp, format='audio/mp3')
+                                        audio_data = audio_fp
+                                    except Exception as gtts_error:
+                                        print(f"gTTS failed: {gtts_error}")
+                                        # Only show toast on error, don't crash or show ugly red box
+                                        # st.toast("Voice output failed (Network/API)", icon="⚠️")
+                                        audio_data = None
+                                
+                                if audio_data and audio_data.getbuffer().nbytes > 100:
+                                    # Write valid WAV header if needed or ensure bytes are ready
+                                    # Streamlit audio handles BytesIO well if format is specified
+                                    # Use unique key to prevent duplicate widgets
+                                    st.audio(audio_data, format="audio/mp3", autoplay=True, key=f"audio_{message_id}")
+                                
+                                # Only render if we have valid data
+                                if audio_data and audio_data.getbuffer().nbytes > 100:
+                                    st.audio(audio_data, format="audio/mp3")
 
-                        except Exception as vocal_error:
+                        except Exception:
                             pass
 
                         # Save history (We save the full response with the image link for continuity)

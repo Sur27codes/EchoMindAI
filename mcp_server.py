@@ -15,6 +15,17 @@ warnings.filterwarnings("ignore", message=".*Examining the path of torch.classes
 warnings.filterwarnings("ignore", category=UserWarning, module="torch")
 warnings.filterwarnings("ignore") # Keep the general ignore as well
 
+@mcp.tool()
+def get_stock_price(ticker: str) -> str:
+    """
+    Get real-time stock price and percentage change for a company.
+    """
+    try:
+        from rag_agent.tools_external import get_stock_price as stock_tool
+        return stock_tool.run(ticker)
+    except Exception as e:
+        return f"Error: {e}"
+
 # Configure logging
 logging.basicConfig(level=logging.ERROR)
 
@@ -317,12 +328,62 @@ def translate_content(text: str, target_lang: str = "en") -> str:
         return f"Error: {e}"
 
 @mcp.tool()
+def save_file(filename: str, content: str) -> str:
+    """Save text or code to a file."""
+    try:
+        from rag_agent.tools import save_file as s_tool
+        return s_tool.run(filename, content)
+    except Exception as e:
+        return f"Error saving file: {e}"
+
+@mcp.tool()
+def generate_ai_image(description: str) -> str:
+    """Generate an image using AI (DALL-E 3)."""
+    try:
+        from rag_agent.tools_external import generate_ai_image as g_tool
+        return g_tool.run(description)
+    except Exception as e:
+        return f"Error generating image: {e}"
+
+@mcp.tool()
+def get_images(query: str) -> str:
+    """Find real images (Wikimedia/Google) or generate distinct visuals."""
+    try:
+        from rag_agent.tools_external import get_images as img_tool
+        return img_tool.run(query)
+    except Exception as e:
+        return f"Error finding images: {e}"
+
+@mcp.tool()
+def find_relevant_links(query: str) -> str:
+    """Find relevant web links, social media profiles, and official sites."""
+    try:
+        from rag_agent.tools_external import find_relevant_links as link_tool
+        return link_tool.run(query)
+    except Exception as e:
+        return f"Error finding links: {e}"
+
+@mcp.tool()
+def find_hotels(query: str) -> str:
+    """Find hotels, availability, and rates."""
+    try:
+        from rag_agent.tools_external import find_hotels as hotel_tool
+        return hotel_tool.run(query)
+    except Exception as e:
+        return f"Error finding hotels: {e}"
+
+@mcp.tool()
+def find_flights(origin: str, destination: str, date: str = "soon") -> str:
+    """Find flights and prices."""
+    try:
+        from rag_agent.tools_external import find_flights as flight_tool
+        return flight_tool.run(origin, destination, date)
+    except Exception as e:
+        return f"Error finding flights: {e}"
+
+@mcp.tool()
 def analyze_image(image_path: str) -> str:
-    """
-    Analyze an image file and return a description.
-    Useful for understanding visual content before searching.
-    image_path: Absolute path to the local image file.
-    """
+    """Analyze an image file and return a description."""
     try:
         from rag_agent.tools_vision import describe_image
         return describe_image(image_path)

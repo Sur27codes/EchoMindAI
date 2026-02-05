@@ -35,7 +35,7 @@ def _fetch_weather(city_name: str) -> str:
         country = location.get("country", "")
         
         # 2. Weather Data
-        weather_url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto"
+        weather_url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,apparent_temperature&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto"
         w_res = requests.get(weather_url).json()
         
         if "error" in w_res:
@@ -48,28 +48,92 @@ def _fetch_weather(city_name: str) -> str:
         wmo_map = {
             0: "Clear sky", 1: "Mainly clear", 2: "Partly cloudy", 3: "Overcast",
             45: "Fog", 48: "Depositing rime fog",
-            51: "Light drizzle", 53: "Moderate drizzle", 55: "Dense drizzle",
-            61: "Slight rain", 63: "Moderate rain", 65: "Heavy rain",
-            71: "Slight snow", 73: "Moderate snow", 75: "Heavy snow",
+            51: "Drizzle", 53: "Moderate drizzle", 55: "Dense drizzle",
+            61: "Rain", 63: "Moderate rain", 65: "Heavy rain",
+            71: "Snow", 73: "Moderate snow", 75: "Heavy snow",
             95: "Thunderstorm"
         }
+        
+        # Icon Map
+        icon_map = {
+            0: "☀️", 1: "🌤️", 2: "⛅", 3: "☁️",
+            45: "🌫️", 48: "🌫️",
+            51: "🌦️", 53: "🌧️", 55: "🌧️",
+            61: "🌧️", 63: "🌧️", 65: "⛈️",
+            71: "🌨️", 73: "🌨️", 75: "❄️",
+            95: "⚡"
+        }
+        
         curr_cond = wmo_map.get(current["weather_code"], "Unknown")
+        curr_icon = icon_map.get(current["weather_code"], "🌡️")
         
-        report = [
-            f"**Weather Report for {name}, {country}**",
-            f"**Current**: {current['temperature_2m']}°C, {curr_cond}",
-            f"Humidity: {current['relative_humidity_2m']}%, Wind: {current['wind_speed_10m']} km/h",
-            "\n**7-Day Forecast**:"
-        ]
-        
+        # Helper for C/F
+        def fmt_temp(c_val):
+            f_val = (c_val * 9/5) + 32
+            return f"{c_val}°C <span style='opacity:0.5; font-size: 0.8em;'>/ {f_val:.1f}°F</span>"
+
+        # Build Forecast Items HTML
+        forecast_html = ""
         for i in range(len(daily["time"])):
             date = daily["time"][i]
+            # Simple Date Format (2025-01-01 -> Jan 01)
+            try:
+                d_obj = datetime.strptime(date, "%Y-%m-%d")
+                date_str = d_obj.strftime("%a, %b %d")
+            except:
+                date_str = date
+                
             max_t = daily["temperature_2m_max"][i]
             min_t = daily["temperature_2m_min"][i]
-            cond = wmo_map.get(daily["weather_code"][i], "-")
-            report.append(f"- {date}: {min_t}°C to {max_t}°C, {cond}")
+            max_f = (max_t * 9/5) + 32
+            min_f = (min_t * 9/5) + 32
             
-        return "\n".join(report)
+            code = daily["weather_code"][i]
+            cond = wmo_map.get(code, "-")
+            icon = icon_map.get(code, "🌡️")
+            
+            forecast_html += f"""<div class="forecast-item">
+<div class="forecast-date">{date_str}</div>
+<div class="forecast-icon">{icon}</div>
+<div class="forecast-temp">{max_t}° <span style="opacity:0.5; font-size:0.8em">{max_f:.0f}°F</span></div>
+<div class="forecast-desc">{cond}</div>
+</div>"""
+
+        # Apparent Temp
+        app_c = current.get('apparent_temperature', current['temperature_2m'])
+        app_f = (app_c * 9/5) + 32
+
+        # Build Main Card HTML
+        card_html = f"""<section class="weather-card">
+<div class="weather-header">
+<div class="weather-main">
+<div class="weather-icon-big" style="font-size: 4rem;">{curr_icon}</div>
+<div class="weather-temp-big">{current['temperature_2m']}°C <br><span style="font-size:0.5em; opacity:0.7">{((current['temperature_2m'] * 9/5) + 32):.1f}°F</span></div>
+<div class="weather-meta">
+<div class="weather-condition">{curr_cond}</div>
+<div class="weather-location">📍 {name}, {country}</div>
+</div>
+</div>
+</div>
+<div class="weather-stats-grid">
+<div class="weather-stat-item">
+<span class="stat-label">Humidity</span>
+<span class="stat-value">{current['relative_humidity_2m']}%</span>
+</div>
+<div class="weather-stat-item">
+<span class="stat-label">Wind</span>
+<span class="stat-value">{current['wind_speed_10m']} <span style="font-size:0.7em">km/h</span></span>
+</div>
+<div class="weather-stat-item">
+<span class="stat-label">Feels Like</span>
+<span class="stat-value">{app_c:.1f}° <span style="font-size:0.7em; opacity:0.7">/ {app_f:.1f}°F</span></span>
+</div>
+</div>
+<div class="weather-forecast-scroll">
+{forecast_html}
+</div>
+</section>"""
+        return card_html
     except Exception as e:
         return f"Error: {e}"
 
@@ -101,7 +165,10 @@ def _fetch_news(topic: str) -> str:
         if not results: return "No news found."
         return f"**Latest News for '{topic}':**\n\n---\n\n" + "\n\n---\n\n".join(results)
     except Exception as e:
-        return f"Error: {e}"
+        error_msg = str(e)
+        if "ratelimit" in error_msg.lower() or "429" in error_msg:
+             return f"**News Error**: The news engine is currently rate limited. Please try again in 5-10 seconds."
+        return f"**News Search Failed**: {error_msg}"
 
 # @lru_cache(maxsize=32) -- REMOVED FOR LIVE UPDATES
 def _fetch_news_archive(topic: str, time_range: str = 'd') -> str:
@@ -123,7 +190,10 @@ def _fetch_news_archive(topic: str, time_range: str = 'd') -> str:
         if not results: return f"No {range_desc} news found for '{topic}'."
         return f"**{range_desc} News for '{topic}':**\n\n" + "\n\n".join(results)
     except Exception as e:
-        return f"Error: {e}"
+        error_msg = str(e)
+        if "ratelimit" in error_msg.lower() or "429" in error_msg:
+             return f"**Archive Error**: Rate limited. Please try again later."
+        return f"**Archive Search Failed**: {error_msg}"
 
 import random
 
@@ -171,8 +241,10 @@ def _search_ddg(query_or_list: str | list, header: str) -> str:
                         break # Backend worked!
                 except Exception as inner_e:
                     # Gentle backoff if rate limited
-                    if "ratelimit" in str(inner_e).lower():
+                    if "ratelimit" in str(inner_e).lower() or "429" in str(inner_e):
                          time.sleep(2.0) # Increase wait
+                    elif "timeout" in str(inner_e).lower():
+                         time.sleep(1.0)
                     continue
             
             return local_res
@@ -185,15 +257,22 @@ def _search_ddg(query_or_list: str | list, header: str) -> str:
                 if len(results) >= 25: break 
                     
         if not results: 
+            # Differentiate between "no results found" and "search failed completely"
             return (f"**{header}:**\n\n(Note: Live search returned no results from any browser channel. "
-                    "Answering based on internal training data.)")
+                    "This might be due to strict rate limiting or no relevant content found. "
+                    "Answering based on internal knowledge.)")
                     
         # Dedup by URL
         seen_urls = set()
         unique_results = []
         for r in results:
             try:
-                url = r.split("](")[1].split(")")[0]
+                # Robust URL extraction
+                if "](" in r and "):" in r:
+                    url = r.split("](")[1].split(")")[0]
+                else:
+                    url = str(hash(r)) # Fallback for unique ID
+
                 if url not in seen_urls:
                     seen_urls.add(url)
                     unique_results.append(r)
@@ -201,8 +280,12 @@ def _search_ddg(query_or_list: str | list, header: str) -> str:
                 continue
         
         return f"**{header}:**\n\n" + "\n\n".join(unique_results[:15])
+
     except Exception as e:
-        return f"Error: {e}"
+        error_msg = str(e)
+        if "ratelimit" in error_msg.lower() or "429" in error_msg:
+             return f"**Search Error**: The search engine is currently rate limiting requests. Please try again in a few seconds."
+        return f"**Search Failed**: {error_msg}. (I will generate a response based on my training data instead.)"
 
 def _generate_dalle_image(prompt: str) -> str:
     """Internal helper to generate DALL-E 3 images."""
@@ -235,54 +318,294 @@ def _find_images(query: str) -> str:
     """Try finding real images using robust search."""
     try:
         results = []
-        # Rotation of headers helps, but the main fix is standardizing the backend
         ua = random.choice(BROWSER_HEADERS)
         
-        # Retry loop for resilience
-        for attempt in range(2):
-            try:
-                print(f"DEBUG: Image Image attempt {attempt} for '{query}'")
-                with DDGS(headers=ua) as ddgs:
-                    # backend="html" is generally safer for scraping when API fails
-                    search_res = ddgs.images(query, max_results=8)
-                    for r in search_res:
-                        img_url = r.get('image', '')
-                        if any(ext in img_url.lower() for ext in ['.jpg', '.jpeg', '.png', '.webp']):
-                            results.append(img_url)
-                
-                if results: 
-                    print(f"DEBUG: Found {len(results)} images via images().")
-                    break
-            except Exception as inner_e:
-                print(f"DEBUG: Image search error (attempt {attempt}): {inner_e}")
+        # 1. Primary: DDGS Images (Best Quality but Rate Limited)
+        try:
+            from duckduckgo_search import DDGS 
+            with DDGS(headers=ua) as ddgs:
+                search_res = ddgs.images(query, max_results=5)
+                for r in search_res:
+                    img_url = r.get('image', '')
+                    if any(ext in img_url.lower() for ext in ['.jpg', '.jpeg', '.png', '.webp']):
+                        results.append(img_url)
+        except Exception:
+            pass # Silent fail to fallback
         
-        # Fallback Strategy: Text Search for Image URLs (if images() failed)
-        if not results:
-            print("DEBUG: Falling back to Text Search for images...")
-            try:
-                with DDGS(headers=ua) as ddgs:
-                    # Search for the query + "image" and look for image-like URLs in results
-                    text_res = ddgs.text(query + " image", max_results=20)
-                    for r in text_res:
-                        link = r.get('href', '')
-                        if any(ext in link.lower() for ext in ['.jpg', '.jpeg', '.png', '.webp']):
-                            results.append(link)
-            except Exception as e:
-                 print(f"DEBUG: Text search fallback failed: {e}")
-
-        if not results: 
-            print("DEBUG: No images found after all strategies.")
-            # If we honestly can't find an image, provide a Google Images link instead of Fake AI 
-            # If we honestly can't find an image, provide a Google Images link instead of Fake AI
-            return (f"**No direct images found.**\n"
-                    f"[🔎 Click here to view '{query}' on Google Images](https://www.google.com/search?tbm=isch&q={query.replace(' ', '+')})")
+        if results:
+            return "\n".join(list(set(results))[:3])
             
-        # Return unique ones
-        unique = list(set(results))
-        return "\n".join(unique[:3])
+        # 2. Secondary: Wikimedia Commons API (Robust, Public, No Rate Limit)
+        try:
+            # print(f"DEBUG: Falling back to Wikimedia for '{query}'...")
+            api_url = "https://commons.wikimedia.org/w/api.php"
+            params = {
+                "action": "query", "format": "json", "generator": "search",
+                "gsrnamespace": 6, "gsrsearch": f"{query} filetype:bitmap",
+                "gsrlimit": 5, "prop": "imageinfo", "iiprop": "url", "iiurlheight": 600
+            }
+            wiki_res = requests.get(api_url, params=params, headers={"User-Agent": "EchoMindAI/1.0"}).json()
+            pages = wiki_res.get("query", {}).get("pages", {})
+            for pid, page in pages.items():
+                if "imageinfo" in page:
+                    results.append(page["imageinfo"][0]["url"])
+        except Exception:
+            pass
+
+        if results:
+            # Format nicely
+            unique = list(set(results))
+            return "\n".join([f"![{query}]({url})" for url in unique[:2]]) # Return markdown directly if from Wiki
+
+        # 3. Final Fallback: AI Generation (DALL-E 3)
+        # "make sure image is generated properly" -> We generate it if we can't find it.
+        # print("DEBUG: No real images found. Generating AI image...")
+        return _generate_dalle_image(f"A high quality photo-realistic image of {query}")
+
     except Exception as e:
-        return (f"**Image Search Error**\n"
-                f"[🔎 Click here to search '{query}' on Google Images](https://www.google.com/search?tbm=isch&q={query.replace(' ', '+')})")
+        return f"Image Error: {e}"
+
+@tool
+def get_stock_price(ticker: str) -> str:
+    """
+    Get real-time stock price, stats, and 'Buy' links.
+    Smartly finds the ticker if a company name is provided (e.g. 'Adani Green' -> 'ADANIGREEN.NS').
+    """
+    try:
+        import yfinance as yf
+        from duckduckgo_search import DDGS
+        import time
+
+        clean_ticker = ticker.upper().replace("$", "").strip()
+        
+        # 1. SMART TICKER LOOKUP
+        # 1. Fallback: Search for Ticker if input is a company name or robust fallback
+        if " " in clean_ticker or len(clean_ticker) > 3:
+            
+            # 1a. HARDCODED FALLBACKS (Robustness against DDGS Rate Limits)
+            # Common queries that might fail search
+            stock_map = {
+                "tata": "TATASTEEL.NS",
+                "tata motors": "TATASTEEL.NS",
+                "tata steel": "TATASTEEL.NS",
+                "tata power": "TATAPOWER.NS",
+                "adani": "ADANIENT.NS",
+                "adani group": "ADANIENT.NS",
+                "adani green": "ADANIGREEN.NS",
+                "reliance": "RELIANCE.NS",
+                "reliance industries": "RELIANCE.NS",
+                "tesla": "TSLA",
+                "apple": "AAPL",
+                "microsoft": "MSFT",
+                "google": "GOOGL",
+                "amazon": "AMZN",
+                "facebook": "META",
+                "meta": "META",
+                "netflix": "NFLX"
+            }
+            
+            lower_input = clean_ticker.lower().strip()
+            # Partial match check (e.g. "tata stocks" -> matches "tata")
+            found_in_map = False
+            for key, val in stock_map.items():
+                if key in lower_input:
+                    clean_ticker = val
+                    found_in_map = True
+                    break
+            
+            if not found_in_map:
+                try:
+                    # Search for "Yahoo Finance ticker for [Name]"
+                    # We try 2 queries: one specific for Yahoo, one general
+                    queries = [f"Yahoo Finance ticker {clean_ticker}", f"stock symbol for {clean_ticker}", f"{clean_ticker} share price"]
+                    
+                    with DDGS() as ddgs:
+                        for i, q in enumerate(queries):
+                            try:
+                                results = list(ddgs.text(q, max_results=3))
+                                if results:
+                                    # Combine text to search in
+                                    blob = " ".join([r['title'] + " " + r['body'] for r in results])
+                                    
+                                    # Regex to find Ticker-like patterns:
+                                    # 1. Indian: WORD.NS or WORD.BO
+                                    import re
+                                    indian_match = re.search(r'\b([A-Z0-9]{3,12}\.(?:NS|BO))\b', blob, re.IGNORECASE)
+                                    if indian_match:
+                                        clean_ticker = indian_match.group(1).upper()
+                                        break
+                                    
+                                    # 2. US: (AAPL) or "Symbol: AAPL"
+                                    us_match = re.search(r'(?:\(|Symbol:\s?|Code:\s?)([A-Z]{2,5})(?:\)| )', blob)
+                                    if us_match:
+                                        candidate = us_match.group(1).upper()
+                                        # Verify it's not a common word
+                                        if candidate not in ["THE", "FOR", "AND", "STOCK", "INC", "LTD", "CORP"] and len(candidate) >= 2:
+                                            clean_ticker = candidate
+                                            break
+                            except Exception as inner_e:
+                                print(f"Search query '{q}' failed: {inner_e}")
+                                continue
+                except Exception as e:
+                    print(f"Ticker lookup failed: {e}")
+
+        # 2. FETCH DATA
+        stock = yf.Ticker(clean_ticker)
+        
+        # Safely fetch price to trigger fallback if needed
+        price = None
+        info = None
+        
+        try:
+            info = stock.fast_info
+            price = info.last_price
+        except:
+            price = None
+        
+        # Retry with .NS (NSE India) as a hard fallback if US ticker fails
+        if price is None and ".NS" not in clean_ticker:
+             try:
+                 # Heuristic: try removing spaces and adding .NS
+                 heuristic_ticker = clean_ticker.replace(" ", "").upper() + ".NS"
+                 stock = yf.Ticker(heuristic_ticker)
+                 info = stock.fast_info
+                 price = info.last_price
+                 if price: clean_ticker = heuristic_ticker
+             except:
+                 pass
+
+        if price is None:
+             # FALLBACK: Real-Time Web Search
+             # If exact ticker lookup fails, we search the web for the price/news immediately.
+             fallback_query = f"share price of {ticker}"
+             return _search_ddg(fallback_query, f"Real-Time Search Results for '{ticker}' (Live Data Unavailable)")
+
+        prev_close = info.previous_close
+        open_price = info.open if hasattr(info, 'open') else prev_close # Fallback
+        day_high = info.day_high if hasattr(info, 'day_high') else price
+        day_low = info.day_low if hasattr(info, 'day_low') else price
+        
+        change = price - prev_close
+        pct_change = (change / prev_close) * 100
+        
+        # Color & Sign
+        color = '#4caf50' if change >= 0 else '#ff5252'
+        emoji = "📈" if change >= 0 else "📉"
+        sign = "+" if change >= 0 else ""
+        
+        # Yahoo Link
+        yahoo_link = f"https://finance.yahoo.com/quote/{clean_ticker}"
+
+        # 3. RICH HTML CARD
+        # Fetch history for dynamic chart
+        try:
+            # User wants "previous ups and downs" -> 1 Year history is better
+            hist = stock.history(period="1y")
+            chart_data = [] # List of dicts for Plotly
+            
+            if not hist.empty:
+                for date, row in hist.iterrows():
+                    chart_data.append({
+                        "Date": date.strftime("%Y-%m-%d"),
+                        "Close": round(row['Close'], 2)
+                    })
+                
+                # RECOVERY: If price was failed (None) but we have history, use the last close!
+                if price is None:
+                    price = chart_data[-1]['Close']
+                    # Approximate generic stats if missing
+                    if prev_close is None: prev_close = price
+                    if open_price is None: open_price = price
+                    if day_high is None: day_high = price
+                    if day_low is None: day_low = price
+                    if change is None: change = 0.0
+                    if pct_change is None: pct_change = 0.0
+            
+            import json
+            # Payload for specialized Plotly Chart
+            payload = {
+                "type": "line",
+                "x": "Date",
+                "y": "Close",
+                "data": chart_data,
+                "title": f"Price Trend (1 Year): {clean_ticker}"
+            }
+            # Use the NEW standard tag that triggers st.plotly_chart
+            chart_embed = f"<!-- CHART_TOOL_JSON: {json.dumps(payload)} -->"
+
+        except Exception as e:
+            print(f"Chart gen failed: {e}")
+            chart_embed = ""
+
+        if price is None:
+             # FALLBACK: Real-Time Web Search
+             # If exact ticker lookup fails AND no history found, we search the web.
+             fallback_query = f"share price of {ticker}"
+             return _search_ddg(fallback_query, f"Real-Time Search Results for '{ticker}' (Live Data Unavailable)")
+
+        # Re-calc change if we recovered price from history
+        if change is None or (change == 0 and prev_close != price):
+             change = price - prev_close
+             pct_change = (change / prev_close) * 100
+             
+        color = "#4caf50" if change >= 0 else "#ff5252"
+        arrow = "▲" if change >= 0 else "▼"
+        sign = "+" if change >= 0 else ""
+        
+        # Yahoo Link
+        yahoo_link = f"https://finance.yahoo.com/quote/{clean_ticker}"
+
+
+        return f"""
+<div class="financial-card" style="font-family: sans-serif; padding: 20px; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; background: linear-gradient(145deg, rgba(255,255,255,0.05), rgba(0,0,0,0.2)); width: 100%; max-width: 400px; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
+    
+    <!-- Header -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <div>
+            <div style="font-size: 1.1rem; font-weight: bold; letter-spacing: 0.5px;">{clean_ticker}</div>
+            <div style="font-size: 0.8rem; color: #aaa;">Real-Time Market Data</div>
+        </div>
+        <div style="font-size: 1.5rem;">{emoji}</div>
+    </div>
+
+    <!-- Main Price -->
+    <div style="margin-bottom: 20px;">
+        <span style="font-size: 2.5rem; font-weight: 700; color: #fff;">${price:,.2f}</span>
+        <div style="color: {color}; font-weight: 600; font-size: 1rem; margin-top: 5px;">
+            {sign}{change:,.2f} ({sign}{pct_change:.2f}%)
+        </div>
+    </div>
+
+    <!-- Stats Grid -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; font-size: 0.9rem;">
+        <div style="background: rgba(255,255,255,0.03); padding: 8px; border-radius: 6px;">
+            <div style="color: #666; font-size: 0.8rem;">Open</div>
+            <div style="color: #ddd;">${open_price:,.2f}</div>
+        </div>
+        <div style="background: rgba(255,255,255,0.03); padding: 8px; border-radius: 6px;">
+            <div style="color: #666; font-size: 0.8rem;">High</div>
+            <div style="color: #ddd;">${day_high:,.2f}</div>
+        </div>
+        <div style="background: rgba(255,255,255,0.03); padding: 8px; border-radius: 6px;">
+            <div style="color: #666; font-size: 0.8rem;">Low</div>
+            <div style="color: #ddd;">${day_low:,.2f}</div>
+        </div>
+        <div style="background: rgba(255,255,255,0.03); padding: 8px; border-radius: 6px;">
+            <div style="color: #666; font-size: 0.8rem;">Prev Close</div>
+            <div style="color: #ddd;">${prev_close:,.2f}</div>
+        </div>
+    </div>
+
+    <!-- Action Button -->
+    <a href="{yahoo_link}" target="_blank" style="display: block; width: 100%; padding: 12px; background: {color}; color: white; text-align: center; border-radius: 8px; text-decoration: none; font-weight: bold; transition: opacity 0.2s;">
+        Buy / Trade on Yahoo Finance ↗
+    </a>
+</div>
+<!-- END_FINANCIAL_CARD -->
+{chart_embed}
+"""
+    except Exception as e:
+        return f"Stock Error: {e}"
 
 # --- TOOLS ---
 
@@ -432,6 +755,30 @@ def get_images(query: str) -> str:
     If real images are not found or search fails, AI will generate one automatically.
     Usage: get_images('iphone 15 pro max titanium') or get_images('Eiffel Tower at night')
     """
+    # 0. HARDCODED IMAGE FALLBACKS (Guaranteed Visuals for Demo)
+    # This ensures "Tata", "Tesla", "Apple" etc always have a high-quality logo/product shot.
+    image_map = {
+        "tata": "https://upload.wikimedia.org/wikipedia/commons/8/8e/Tata_logo.svg",
+        "tata motors": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8e/Tata_logo.svg/1200px-Tata_logo.svg.png",
+        "tata steel": "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8e/Tata_logo.svg/1920px-Tata_logo.svg.png",
+        "adani": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5e/Adani_2012_logo.png/1200px-Adani_2012_logo.png",
+        "adani group": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5e/Adani_2012_logo.png/1200px-Adani_2012_logo.png",
+        "tesla": "https://upload.wikimedia.org/wikipedia/commons/thumb/b/bd/Tesla_Motors.svg/1200px-Tesla_Motors.svg.png",
+        "apple": "https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg",
+        "iphone": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/IPhone_15_Pro_Blue_Titanium.jpg/640px-IPhone_15_Pro_Blue_Titanium.jpg",
+        "google": "https://upload.wikimedia.org/wikipedia/commons/2/2f/Google_2015_logo.svg",
+        "microsoft": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/44/Microsoft_logo.svg/1200px-Microsoft_logo.svg.png",
+        "amazon": "https://upload.wikimedia.org/wikipedia/commons/a/a9/Amazon_logo.svg",
+        "facebook": "https://upload.wikimedia.org/wikipedia/commons/6/6c/Facebook_Logo_2023.png",
+        "netflix": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/08/Netflix_2015_logo.svg/1200px-Netflix_2015_logo.svg.png",
+        "echo mind": "https://raw.githubusercontent.com/survaghasiya/EchoMindAI/main/assets/logo.png" # Example
+    }
+    
+    clean_q = query.lower().strip()
+    for key, url in image_map.items():
+        if key in clean_q:
+            return f"![{key}]({url})"
+
     return _find_images(query)
 
 @tool
