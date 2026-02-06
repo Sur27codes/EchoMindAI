@@ -37,12 +37,3 @@ test_*.py
 # Data
 data/
 static/plot.png
-
-# Generated Plots (Root)
-plot.png
-sine_wave.png
-x_y_axes.png
-point_3_3.png
-
-# Scripts
-verify_regex_v2.py

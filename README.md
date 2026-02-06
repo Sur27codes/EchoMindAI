@@ -93,3 +93,8 @@ EchoMindAI pushes **Streamlit** to its absolute limit, tricking it into behaving
 | Data Visualization | Plotting Capabilities | Generated Insights |
 |:---:|:---:|:---:|
 | ![Sine Wave](assets/images/sine_wave_example.png) | ![X/Y Plot](assets/images/plot_example.png) | ![Generated Plot](assets/images/generated_plot.png) |
+
+## 🖥️ UI Preview
+
+![EchoMindAI Interface](assets/images/ui_home.png)
+
