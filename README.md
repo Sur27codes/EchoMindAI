@@ -257,13 +257,25 @@ Building a production-ready agent came with significant hurdles. Here is how we 
 
 ## 📸 Gallery
 
-| Latest News | Weather Updates | Market Data |
-| :---: | :---: | :---: |
-| ![News](assets/images/gallery_news.png) | ![Weather](assets/images/gallery_weather.png) | ![Stocks](assets/images/gallery_stocks.png) |
+### 1. 📰 Real-Time News Intelligence
+*Deep research on global topics (e.g., Alibaba's market position) with cited sources.*
+![News](assets/images/gallery_news.png)
 
-| AI Vision (City) | Travel Planning |
-| :---: | :---: |
-| ![City](assets/images/gallery_city.png) | ![Travel](assets/images/gallery_travel.png) |
+### 2. 🌦️ Live Weather Dashboard
+*Instant, location-based weather reports with graphical forecasts.*
+![Weather](assets/images/gallery_weather.png)
+
+### 3. 📈 Financial Market Analysis
+*Live stock tickers (Nvidia) and performance metrics extracted in real-time.*
+![Stocks](assets/images/gallery_stocks.png)
+
+### 4. 🎨 AI Vision & Image Generation
+*Futuristic cityscapes generated on-demand by the multi-modal agent.*
+![City](assets/images/gallery_city.png)
+
+### 5. ✈️ Travel & Hospitality Planning
+*Rich UI cards for hotel recommendations (Maldives) with pricing and ratings.*
+![Travel](assets/images/gallery_travel.png)
 
 ---
 
