@@ -107,6 +107,18 @@ Building a production-ready agent came with significant hurdles. Here is how we 
 
 ## 📸 Gallery
 
+| Latest News | Weather Updates | Market Data |
+| :---: | :---: | :---: |
+| ![News](assets/images/gallery_news.png) | ![Weather](assets/images/gallery_weather.png) | ![Stocks](assets/images/gallery_stocks.png) |
+
+| AI Vision (City) | Travel Planning |
+| :---: | :---: |
+| ![City](assets/images/gallery_city.png) | ![Travel](assets/images/gallery_travel.png) |
+
+---
+
+## 📸 Gallery
+
 
 ---
 
