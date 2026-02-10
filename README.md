@@ -107,16 +107,6 @@ Building a production-ready agent came with significant hurdles. Here is how we 
 
 ## 📸 Gallery
 
-### Capabilities Showcase
-A glimpse into the multi-modal power of EchoMindAI.
-
-| Real-Time Live Data | Stock Analysis | Math Solving |
-| :---: | :---: | :---: |
-| ![News Feature](assets/images/feature_news.png) | ![Stock Feature](assets/images/showcase_3.png) | ![Math Feature](assets/images/showcase_4.png) |
-
-| Global Weather | Travel Planning | Knowledge Graph |
-| :---: | :---: | :---: |
-| ![Weather Feature](assets/images/showcase_1.png) | ![Travel Feature](assets/images/showcase_2.png) | ![Graph Feature](assets/images/showcase_5.png) |
 
 ---
 
