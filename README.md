@@ -19,38 +19,137 @@
 
 ---
 
-## 🔄 detailed Workflows
+## 🏗️ System Architecture & Engineering
+We designed EchoMindAI with a modular, scalable architecture that separates the *Cognitive Layer* (Agent) from the *Presentation Layer* (UI), bridged by a high-speed *Signal Processing* pipeline.
 
-### 1. The RAG Pipeline (The Brain)
-How EchoMindAI decides between internal knowledge and the live web.
-
-```mermaid
-graph LR
-    Query[User Query] -->|Analysis| Classifier{Intent Classifier}
-    
-    Classifier -->|Internal Doc?| VectorDB[(FAISS Vector DB)]
-    Classifier -->|Live Info?| Search(DuckDuckGo Search)
-    Classifier -->|General Chat?| LLM(GPT-4o)
-    
-    VectorDB -->|Retrieved Chunks| Context
-    Search -->|Web Results| Context
-    
-    Context --> LLM
-    LLM --> Response[Final Answer]
-```
-
-### 2. The Voice Interaction Loop
-How we achieved near-instant voice conversations.
+### 1. High-Level System Overview
+A bird's-eye view of how specific components interact to deliver a seamless experience.
 
 ```mermaid
 graph TD
-    User((User Voice)) -->|Audio Stream| Groq[Groq Whisper API]
-    Groq -->|Text Transcript| Agent[Agent Brain]
-    Agent -->|Text Response| OpenAI[OpenAI TTS]
-    OpenAI -->|Audio Buffer| Speaker((User Speaker))
+    subgraph Client ["🖥️ Presentation Layer (Client)"]
+        Browser[Web Browser]
+        Mic[Microphone Input]
+        Speaker[Audio Output]
+    end
+
+    subgraph Server ["☁️ Application Server (Python)"]
+        Streamlit[Streamlit Runtime]
+        Injector[HTML/CSS Injector]
+        Orchestrator[Agent Orchestrator]
+    end
+
+    subgraph Cognitive ["🧠 Cognitive Layer (AI)"]
+        Planner[LangChain Planner]
+        Memory[FAISS Vector Store]
+        LLM[OpenAI GPT-4o]
+    end
+
+    subgraph Tools ["🛠️ Tool Belt"]
+        Search[DuckDuckGo]
+        Code[Python REPL]
+        Vision[Computer Vision]
+        Stocks[yFinance]
+    end
+
+    subgraph Voice ["⚡ Voice Pipeline"]
+        Groq[Groq LPU (Whisper)]
+        TTS[OpenAI HD TTS]
+    end
+
+    %% Flow Connections
+    Mic -->|Audio Stream| Groq
+    Groq -->|Transcribed Text| Streamlit
+    Browser -->|User Interaction| Streamlit
+    Streamlit -->|Context & Query| Orchestrator
     
-    style Groq fill:#f96,stroke:#333,stroke-width:2px
-    style OpenAI fill:#9cf,stroke:#333,stroke-width:2px
+    Orchestrator -->|Reasoning| Planner
+    Planner <-->|Query & Retrieve| Memory
+    Planner <-->|Inference| LLM
+    Planner <-->|Execute| Tools
+    
+    Orchestrator -->|Final Response| Streamlit
+    Streamlit -->|Text Response| Injector
+    Injector -->|Rendered UI| Browser
+    Streamlit -->|Speech Synthesis| TTS
+    TTS -->|Audio Buffer| Speaker
+
+    classDef distinct fill:#2d2d2d,stroke:#fff,stroke-width:2px;
+    class Client,Server,Cognitive,Tools,Voice distinct;
+```
+
+### 2. Knowledge Ingestion Pipeline (RAG)
+How raw documents are transformed into searchable machine intelligence.
+
+```mermaid
+graph LR
+    Input[PDF / Text / CSV] -->|Upload| Loader[Document Loader]
+    Loader -->|Raw Text| Splitter[Recursive Character Splitter]
+    
+    subgraph Processing ["Processing Core"]
+        Splitter -->|Chunks (1000 tokens)| Embed[OpenAI Embeddings]
+        Embed -->|Vectors| Index[(FAISS Index)]
+    end
+    
+    subgraph Retrieval ["Query Time"]
+        Query[User Question] -->|Embed| Q_Vector[Query Vector]
+        Q_Vector <-->|Similarity Search (k=4)| Index
+        Index -->|Top Context| Context
+        Context -->|Augmented Prompt| LLM(GPT-4o)
+    end
+
+    style Input fill:#4CAF50,color:#fff
+    style Index fill:#2196F3,color:#fff
+    style LLM fill:#FF9800,color:#fff
+```
+
+### 3. Agentic Reasoning Loop (ReAct)
+The "Brain" doesn't just answer; it thinks. We use the **ReAct** (Reason+Act) pattern.
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Agent
+    participant Tool
+    participant LLM
+    
+    User->>Agent: "What is the stock price of Apple?"
+    
+    loop Reasoning Cycle
+        Agent->>LLM: Prompt: "Question: Stock price of Apple. Thought?"
+        LLM->>Agent: "Thought: I need to use the stock tool. Action: Stocks(AAPL)"
+        
+        Agent->>Tool: Execute: get_stock_price("AAPL")
+        Tool->>Agent: Observation: "$220.50"
+        
+        Agent->>LLM: Prompt: "Observation: $220.50. Thought?"
+        LLM->>Agent: "Thought: I have the answer. Final Answer: Apple is $220.50."
+    end
+    
+    Agent->>User: "Apple is currently trading at $220.50 📈"
+```
+
+### 4. Frontend "Shadow DOM" RenderingEngine
+How we render glassmorphism and custom components in a framework (Streamlit) that doesn't natively support them.
+
+```mermaid
+graph TD
+    Stream[LLM Token Stream] -->|Interceptor| Parser{Regex Parser}
+    
+    Parser -->|Markdown?| Standard[St_Markdown]
+    Parser -->|JSON/HTML?| Custom[Custom Renderer]
+    
+    subgraph "Injection Engine"
+        Custom -->|Sanitize| SafeHTML[Sanitized HTML]
+        SafeHTML -->|Apply Classes| CSS[CSS Class Injection]
+        CSS -->|Execute JS| JS[JS Event Listeners]
+    end
+    
+    Standard --> DOM[Browser DOM]
+    JS --> DOM
+    
+    style Parser fill:#ff5252,color:#fff
+    style Custom fill:#7c4dff,color:#fff
 ```
 
 ---
