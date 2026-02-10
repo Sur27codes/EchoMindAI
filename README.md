@@ -7,7 +7,7 @@
 ![Frontend](https://img.shields.io/badge/Frontend-Streamlit-red)
 ![AI](https://img.shields.io/badge/AI-OpenAI%20%7C%20Groq-orange)
 
-![EchoMindAI Home](assets/images/ui_home.png)
+
 
 ---
 
