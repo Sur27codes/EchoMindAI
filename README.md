@@ -117,10 +117,7 @@ Building a production-ready agent came with significant hurdles. Here is how we 
 
 ---
 
-## 📸 Gallery
 
-
----
 
 ## 🛠️ Technology Stack
 
