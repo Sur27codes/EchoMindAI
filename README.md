@@ -53,7 +53,7 @@ graph TD
     end
 
     subgraph Voice ["⚡ Voice Pipeline"]
-        Groq[Groq LPU (Whisper)]
+        Groq["Groq LPU (Whisper)"]
         TTS[OpenAI HD TTS]
     end
 
@@ -83,17 +83,17 @@ How raw documents are transformed into searchable machine intelligence.
 
 ```mermaid
 graph LR
-    Input[PDF / Text / CSV] -->|Upload| Loader[Document Loader]
+    Input["PDF / Text / CSV"] -->|Upload| Loader[Document Loader]
     Loader -->|Raw Text| Splitter[Recursive Character Splitter]
     
     subgraph Processing ["Processing Core"]
-        Splitter -->|Chunks (1000 tokens)| Embed[OpenAI Embeddings]
+        Splitter -->|"Chunks (1000 tokens)"| Embed[OpenAI Embeddings]
         Embed -->|Vectors| Index[(FAISS Index)]
     end
     
     subgraph Retrieval ["Query Time"]
         Query[User Question] -->|Embed| Q_Vector[Query Vector]
-        Q_Vector <-->|Similarity Search (k=4)| Index
+        Q_Vector <-->|"Similarity Search (k=4)"| Index
         Index -->|Top Context| Context
         Context -->|Augmented Prompt| LLM(GPT-4o)
     end
@@ -136,8 +136,8 @@ How we render glassmorphism and custom components in a framework (Streamlit) tha
 graph TD
     Stream[LLM Token Stream] -->|Interceptor| Parser{Regex Parser}
     
-    Parser -->|Markdown?| Standard[St_Markdown]
-    Parser -->|JSON/HTML?| Custom[Custom Renderer]
+    Parser -->|"Markdown?"| Standard[St_Markdown]
+    Parser -->|"JSON/HTML?"| Custom[Custom Renderer]
     
     subgraph "Injection Engine"
         Custom -->|Sanitize| SafeHTML[Sanitized HTML]
