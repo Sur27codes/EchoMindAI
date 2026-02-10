@@ -28,33 +28,33 @@ A bird's-eye view of how specific components interact to deliver a seamless expe
 ```mermaid
 graph TD
     subgraph Client ["🖥️ Presentation Layer (Client)"]
-        Browser[Web Browser]
-        Mic[Microphone Input]
-        Speaker[Audio Output]
+        Browser["Web Browser"]:::client
+        Mic["Microphone Input"]:::client
+        Speaker["Audio Output"]:::client
     end
 
     subgraph Server ["☁️ Application Server (Python)"]
-        Streamlit[Streamlit Runtime]
-        Injector[HTML/CSS Injector]
-        Orchestrator[Agent Orchestrator]
+        Streamlit["Streamlit Runtime"]:::server
+        Injector["HTML/CSS Injector"]:::server
+        Orchestrator["Agent Orchestrator"]:::server
     end
 
     subgraph Cognitive ["🧠 Cognitive Layer (AI)"]
-        Planner[LangChain Planner]
-        Memory[FAISS Vector Store]
-        LLM[OpenAI GPT-4o]
+        Planner["LangChain Planner"]:::ai
+        Memory["FAISS Vector Store"]:::ai
+        LLM["OpenAI GPT-4o"]:::ai
     end
 
     subgraph Tools ["🛠️ Tool Belt"]
-        Search[DuckDuckGo]
-        Code[Python REPL]
-        Vision[Computer Vision]
-        Stocks[yFinance]
+        Search["DuckDuckGo"]:::tool
+        Code["Python REPL"]:::tool
+        Vision["Computer Vision"]:::tool
+        Stocks["yFinance"]:::tool
     end
 
     subgraph Voice ["⚡ Voice Pipeline"]
-        Groq["Groq LPU (Whisper)"]
-        TTS[OpenAI HD TTS]
+        Groq["Groq LPU (Whisper)"]:::voice
+        TTS["OpenAI HD TTS"]:::voice
     end
 
     %% Flow Connections
@@ -74,34 +74,58 @@ graph TD
     Streamlit -->|Speech Synthesis| TTS
     TTS -->|Audio Buffer| Speaker
 
-    classDef distinct fill:#2d2d2d,stroke:#fff,stroke-width:2px;
-    class Client,Server,Cognitive,Tools,Voice distinct;
+    %% Styling
+    classDef client fill:#E1F5FE,stroke:#01579B,stroke-width:2px,color:#000;
+    classDef server fill:#F3E5F5,stroke:#4A148C,stroke-width:2px,color:#000;
+    classDef ai fill:#FFF3E0,stroke:#E65100,stroke-width:2px,color:#000;
+    classDef tool fill:#E8F5E9,stroke:#1B5E20,stroke-width:2px,color:#000;
+    classDef voice fill:#FFEBEE,stroke:#B71C1C,stroke-width:2px,color:#000;
 ```
+
+**Trace the Flow:**
+1.  **Input**: User speaks into the **Microphone**. Audio travels to **Groq LPU** for ultra-fast transcription (ms latency).
+2.  **Orchestration**: The **Streamlit** server receives text, updates the session state, and triggers the **Agent Orchestrator**.
+3.  **Cognition**: The **LangChain Planner** consults **Memory** (RAG) and **Tools** (Search, Stocks) to formulate a response using **GPT-4o**.
+4.  **Action**: Depending on the query, it might fetch live data (e.g., Stock Price) or generate logic.
+5.  **Output**: The final response is split:
+    *   **Visual**: HTML/CSS is injected into the **Browser** for a rich UI.
+    *   **Audio**: Text is sent to **OpenAI TTS** and played via the **Speaker**.
 
 ### 2. Knowledge Ingestion Pipeline (RAG)
 How raw documents are transformed into searchable machine intelligence.
 
 ```mermaid
 graph LR
-    Input["PDF / Text / CSV"] -->|Upload| Loader[Document Loader]
-    Loader -->|Raw Text| Splitter[Recursive Character Splitter]
+    Input["PDF / Text / CSV"]:::input -->|Upload| Loader["Document Loader"]
+    Loader -->|Raw Text| Splitter["Recursive Character Splitter"]
     
-    subgraph Processing ["Processing Core"]
-        Splitter -->|"Chunks (1000 tokens)"| Embed[OpenAI Embeddings]
-        Embed -->|Vectors| Index[(FAISS Index)]
+    subgraph Processing ["⚙️ Processing Core"]
+        Splitter -->|"Chunks (1000 tokens)"| Embed["OpenAI Embeddings"]:::process
+        Embed -->|Vectors| Index[("FAISS Index")]:::db
     end
     
-    subgraph Retrieval ["Query Time"]
-        Query[User Question] -->|Embed| Q_Vector[Query Vector]
+    subgraph Retrieval ["🔍 Query Time"]
+        Query["User Question"]:::query -->|Embed| Q_Vector["Query Vector"]:::process
         Q_Vector <-->|"Similarity Search (k=4)"| Index
-        Index -->|Top Context| Context
-        Context -->|Augmented Prompt| LLM(GPT-4o)
+        Index -->|Top Context| Context["Augmented Context"]:::result
+        Context -->|Prompt + Context| LLM["LLM (GPT-4o)"]:::ai
     end
 
-    style Input fill:#4CAF50,color:#fff
-    style Index fill:#2196F3,color:#fff
-    style LLM fill:#FF9800,color:#fff
+    %% Styling
+    classDef input fill:#E8F5E9,stroke:#2E7D32,stroke-width:2px,color:#000;
+    classDef process fill:#E3F2FD,stroke:#1565C0,stroke-width:2px,color:#000;
+    classDef db fill:#FFF8E1,stroke:#FF8F00,stroke-width:2px,color:#000;
+    classDef query fill:#F3E5F5,stroke:#7B1FA2,stroke-width:2px,color:#000;
+    classDef result fill:#FBE9E7,stroke:#D84315,stroke-width:2px,color:#000;
+    classDef ai fill:#FFF3E0,stroke:#E65100,stroke-width:2px,color:#000;
 ```
+
+**Trace the Knowledge:**
+1.  **Ingestion**: A user uploads a generic PDF/CSV. The **Loader** extracts raw text.
+2.  **Chunking**: The text is split into manageable chunks (e.g., 1000 tokens) to fit context windows.
+3.  **Embedding**: **OpenAI Embeddings** convert these chunks into vector representations (lists of numbers).
+4.  **Storage**: Vectors are stored in a **FAISS Index** for high-speed similarity search.
+5.  **Retrieval**: When a user asks a question, it's also embedded. The system finds the "nearest neighbors" in the FAISS index (the most relevant chunks) and feeds them to the LLM.
 
 ### 3. Agentic Reasoning Loop (ReAct)
 The "Brain" doesn't just answer; it thinks. We use the **ReAct** (Reason+Act) pattern.
@@ -109,48 +133,75 @@ The "Brain" doesn't just answer; it thinks. We use the **ReAct** (Reason+Act) pa
 ```mermaid
 sequenceDiagram
     participant User
-    participant Agent
-    participant Tool
-    participant LLM
+    participant Agent as 🤖 Agent
+    participant LLM as 🧠 GPT-4o
+    participant Tool as 🛠️ External Tool
     
     User->>Agent: "What is the stock price of Apple?"
+    note right of User: User initiates query
     
-    loop Reasoning Cycle
-        Agent->>LLM: Prompt: "Question: Stock price of Apple. Thought?"
-        LLM->>Agent: "Thought: I need to use the stock tool. Action: Stocks(AAPL)"
-        
-        Agent->>Tool: Execute: get_stock_price("AAPL")
-        Tool->>Agent: Observation: "$220.50"
-        
-        Agent->>LLM: Prompt: "Observation: $220.50. Thought?"
-        LLM->>Agent: "Thought: I have the answer. Final Answer: Apple is $220.50."
+    rect rgb(240, 248, 255)
+    note right of Agent: Reasoning Cycle Starts
+    
+    Agent->>LLM: Prompt: "Question: Stock price of Apple. Thought?"
+    LLM->>Agent: "Thought: I need to use the stock tool. Action: Stocks(AAPL)"
+    
+    Agent->>Tool: Execute: get_stock_price("AAPL")
+    Tool-->>Agent: Observation: "$220.50"
+    
+    Agent->>LLM: Prompt: "Observation: $220.50. Thought?"
+    LLM->>Agent: "Thought: I have the answer. Final Answer: Apple is $220.50."
     end
     
     Agent->>User: "Apple is currently trading at $220.50 📈"
+    note left of Agent: Cycle Complete
 ```
+
+**Trace the Thought Process:**
+1.  **Goal**: The Agent receives a complex query (e.g., live data is needed).
+2.  **Thought**: It asks the LLM, "What should I do?" The LLM decides it can't answer from training data alone.
+3.  **Action**: The LLM selects a specific tool (`Stocks`) and generates the correct parameters (`AAPL`).
+4.  **Observation**: The system runs the Python function for that tool and feeds the raw return value (`$220.50`) back to the agent.
+5.  **Synthesis**: The LLM incorporates this new fact and generates the final natural language answer.
 
 ### 4. Frontend "Shadow DOM" RenderingEngine
 How we render glassmorphism and custom components in a framework (Streamlit) that doesn't natively support them.
 
 ```mermaid
 graph TD
-    Stream[LLM Token Stream] -->|Interceptor| Parser{Regex Parser}
+    Stream["LLM Token Stream"]:::stream -->|Interceptor| Parser{"Regex Parser"}:::logic
     
-    Parser -->|"Markdown?"| Standard[St_Markdown]
-    Parser -->|"JSON/HTML?"| Custom[Custom Renderer]
+    Parser -->|"Markdown?"| Standard["St_Markdown"]:::standard
+    Parser -->|"JSON/HTML?"| Custom["Custom Renderer"]:::custom
     
     subgraph "Injection Engine"
-        Custom -->|Sanitize| SafeHTML[Sanitized HTML]
-        SafeHTML -->|Apply Classes| CSS[CSS Class Injection]
-        CSS -->|Execute JS| JS[JS Event Listeners]
+        Custom -->|Sanitize| SafeHTML["Sanitized HTML"]:::safe
+        SafeHTML -->|Apply Classes| CSS["CSS Class Injection"]:::css
+        CSS -->|Execute JS| JS["JS Event Listeners"]:::js
     end
     
-    Standard --> DOM[Browser DOM]
+    Standard --> DOM["Browser DOM"]:::dom
     JS --> DOM
     
-    style Parser fill:#ff5252,color:#fff
-    style Custom fill:#7c4dff,color:#fff
+    %% Styling
+    classDef stream fill:#E1F5FE,stroke:#0288D1,stroke-width:2px,color:#000;
+    classDef logic fill:#FFF3E0,stroke:#F57C00,stroke-width:2px,color:#000;
+    classDef standard fill:#F5F5F5,stroke:#616161,stroke-width:2px,color:#000;
+    classDef custom fill:#F3E5F5,stroke:#7B1FA2,stroke-width:2px,color:#000;
+    classDef safe fill:#E8F5E9,stroke:#388E3C,stroke-width:2px,color:#000;
+    classDef css fill:#FCE4EC,stroke:#C2185B,stroke-width:2px,color:#000;
+    classDef js fill:#FFF8E1,stroke:#FFA000,stroke-width:2px,color:#000;
+    classDef dom fill:#E0F2F1,stroke:#00796B,stroke-width:2px,color:#000;
 ```
+
+**Trace the Rendering:**
+1.  **Stream**: The LLM outputs tokens. We don't just print them; we inspect them.
+2.  **Intercept**: A Regex parser watches for specific patterns (e.g., `{ "chart": ... }` or `<div class="card">`).
+3.  **Fork**:
+    *   Standard text goes to the normal Streamlit Markdown renderer.
+    *   Detected UI components are routed to the **Custom Renderer**.
+4.  **Inject**: The custom renderer generates raw HTML/CSS (bypassing Streamlit's limitations) and injects it into the page via `st.markdown(unsafe_allow_html=True)`.
+5.  **Result**: A fully interactive, styled component appears instantly in the chat feed.
 
 ---
 
