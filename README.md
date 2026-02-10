@@ -107,13 +107,16 @@ Building a production-ready agent came with significant hurdles. Here is how we 
 
 ## 📸 Gallery
 
-### Visual Intelligence
-*Upload an image of a product, and the agent acts as your personal shopper.*
-![Visual Feature](assets/images/feature_demo_1.png)
+### Capabilities Showcase
+A glimpse into the multi-modal power of EchoMindAI.
 
-### Real-Time Live Data
-*Fetching global news and rendering it as interactive cards.*
-![News Feature](assets/images/feature_demo_2.png)
+| Real-Time Live Data | Stock Analysis | Math Solving |
+| :---: | :---: | :---: |
+| ![News Feature](assets/images/feature_news.png) | ![Stock Feature](assets/images/showcase_3.png) | ![Math Feature](assets/images/showcase_4.png) |
+
+| Global Weather | Travel Planning | Knowledge Graph |
+| :---: | :---: | :---: |
+| ![Weather Feature](assets/images/showcase_1.png) | ![Travel Feature](assets/images/showcase_2.png) | ![Graph Feature](assets/images/showcase_5.png) |
 
 ---
 
